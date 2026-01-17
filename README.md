@@ -1,5 +1,7 @@
 # LINK | kiste
 
+![Screenshot](./Screenshot1.png)
+
 A minimalist, personal bookmarking tool inspired by early del.icio.us. Built with **React 19** and **Supabase**.
 
 It features a tag cloud, folder organization, unread lists, and a retro-style interface. It is designed to be a private, single-user application.
