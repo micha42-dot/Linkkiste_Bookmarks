@@ -15,7 +15,7 @@ It features a tag cloud, folder organization, unread lists, and a retro-style in
 
 Before running the app, you need to set up your backend.
 
-1.  Create a new project at [database.new](https://database.new).
+1.  Create a new project at [supabase.com](https://supabase.com).
 2.  Go to the **SQL Editor** in your Supabase dashboard.
 3.  Copy and run the following SQL script to set up the tables, security policies, and storage:
 
