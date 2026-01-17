@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#3274D1" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="https://placehold.co/192x192/3274D1/FFFFFF.png?text=LK">
+    <title>LINK | Kiste</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'del-blue': '#3274D1', // The classic Delicious Blue
+              'del-dark-blue': '#245dc1',
+              'del-link': '#3274D1',
+              'del-gray': '#999999',
+              'del-green': '#86C944', // The classic Delicious Green
+              'del-bg-header': '#ffffff',
+              'del-nav-bg': '#f0f0f0',
+              'del-border': '#CCCCCC',
+              'retro-blue': '#3274D1'
+            },
+            fontFamily: {
+              'retro': ['Arial', 'Helvetica', 'sans-serif'],
+              'arial': ['Arial', 'Helvetica', 'sans-serif'],
+            },
+            fontSize: {
+              'xxs': '0.65rem',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #FFFFFF;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 13px;
+        color: #333;
+        line-height: 1.4;
+        /* Prevent pull-to-refresh on mobile which feels web-like */
+        overscroll-behavior-y: none;
+      }
+      a { color: #3274D1; text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      button { 
+        cursor: pointer; 
+        touch-action: manipulation; /* Prevents double-tap to zoom */
+      }
+      input[type="checkbox"] { cursor: pointer; }
+      .tag-cloud-item:hover { text-decoration: underline; color: #3274D1; }
+
+      /* Utility to truly hide scrollbars while allowing scroll */
+      .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+      }
+      .scrollbar-hide {
+          -ms-overflow-style: none;  /* IE and Edge */
+          scrollbar-width: none;  /* Firefox */
+      }
+
+      /* Prevent iOS zoom on inputs by enforcing 16px on small screens */
+      @media screen and (max-width: 768px) {
+        input, textarea, select {
+          font-size: 16px !important;
+        }
+      }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@19?dev",
+    "react-dom/client": "https://esm.sh/react-dom@19/client?dev",
+    "react-dom": "https://esm.sh/react-dom@19?dev",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.8",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "vite": "https://esm.sh/vite@^7.3.1"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+    <!-- Error Trap for White Screen of Death -->
+    <script>
+      window.addEventListener('error', function(e) {
+        // Ignorieren von ResizeObserver Fehlern, die oft harmlos sind
+        if (e.message === 'ResizeObserver loop limit exceeded') return;
+
+        if (document.body.innerText.trim() === '') {
+           document.body.innerHTML = '<div style="padding:20px; font-family:sans-serif; color:red;"><h3>Application Crash</h3><p>' + e.message + '</p><p>Check console for details.</p></div>';
+        }
+      });
+    </script>
+  </body>
+</html>
