@@ -403,6 +403,7 @@ const App: React.FC = () => {
                   onCancel={() => window.close()}
                   initialUrl={initialBookmarkData?.url}
                   initialTitle={initialBookmarkData?.title}
+                  allFolders={allFolders} // Added folders to popup
                   isPopup={true}
                 />
           </div>
@@ -482,6 +483,7 @@ const App: React.FC = () => {
           }}
           initialUrl={initialBookmarkData?.url}
           initialTitle={initialBookmarkData?.title}
+          allFolders={allFolders} // Added folders to standard add
         />
       )}
 

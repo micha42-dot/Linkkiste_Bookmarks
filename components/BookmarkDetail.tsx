@@ -29,6 +29,10 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
   const [isEditingMeta, setIsEditingMeta] = useState(false);
   const [isSavingMeta, setIsSavingMeta] = useState(false);
   
+  // Folder Creation State
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [newFolderTemp, setNewFolderTemp] = useState('');
+  
   // Form State
   const [title, setTitle] = useState(bookmark.title);
   const [url, setUrl] = useState(bookmark.url);
@@ -87,22 +91,42 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
       setIsEditingNotes(false);
   };
 
-  const handleAddExistingFolder = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleFolderSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
       const selected = e.target.value;
       if (!selected) return;
-      
-      // If folders is empty, set it. If not, append with comma
-      if (!folders.trim()) {
-          setFolders(selected);
+
+      if (selected === '___CREATE_NEW___') {
+          setIsCreatingFolder(true);
       } else {
-          // Check if already exists in text to avoid duplicates
-          const current = folders.split(',').map(f => f.trim());
-          if (!current.includes(selected)) {
-              setFolders(folders + ', ' + selected);
+          // If folders is empty, set it. If not, append with comma
+          if (!folders.trim()) {
+              setFolders(selected);
+          } else {
+              // Check if already exists in text to avoid duplicates
+              const current = folders.split(',').map(f => f.trim());
+              if (!current.includes(selected)) {
+                  setFolders(folders + ', ' + selected);
+              }
           }
       }
       e.target.value = ''; // Reset select
   };
+
+  const confirmNewFolder = () => {
+      const val = newFolderTemp.trim();
+      if (val) {
+          if (!folders.trim()) {
+              setFolders(val);
+          } else {
+              const current = folders.split(',').map(f => f.trim());
+              if (!current.includes(val)) {
+                  setFolders(folders + ', ' + val);
+              }
+          }
+      }
+      setNewFolderTemp('');
+      setIsCreatingFolder(false);
+  }
 
   const dateStr = new Date(bookmark.created_at).toLocaleDateString('de-DE', { 
     weekday: 'long', 
@@ -190,7 +214,7 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-600 mb-1">Folders</label>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 relative">
                             <input 
                                 type="text" 
                                 value={folders} 
@@ -198,17 +222,35 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
                                 className="w-full border p-2 text-sm rounded-sm focus:border-del-blue outline-none bg-yellow-50/50" 
                                 placeholder="Folder1, Folder2..."
                             />
-                            {/* Folder Dropdown */}
-                            {allFolders.length > 0 && (
-                                <select 
-                                    onChange={handleAddExistingFolder}
-                                    className="border border-gray-300 bg-white text-xs w-24 rounded-sm focus:border-del-blue outline-none"
-                                >
-                                    <option value="">+ Add...</option>
-                                    {allFolders.map(f => (
-                                        <option key={f} value={f}>{f}</option>
-                                    ))}
-                                </select>
+                            
+                            {/* Folder Dropdown OR New Input */}
+                            {isCreatingFolder ? (
+                                <div className="absolute top-10 right-0 bg-white border border-gray-300 p-2 shadow-lg rounded-sm z-10 flex gap-1 w-48">
+                                    <input 
+                                        type="text" 
+                                        autoFocus
+                                        placeholder="New Folder Name" 
+                                        className="text-xs border border-gray-200 p-1 w-full"
+                                        value={newFolderTemp}
+                                        onChange={(e) => setNewFolderTemp(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), confirmNewFolder())}
+                                    />
+                                    <button onClick={confirmNewFolder} type="button" className="bg-del-blue text-white text-xs px-2 rounded-sm">OK</button>
+                                </div>
+                            ) : (
+                                (allFolders.length > 0 || true) && (
+                                    <select 
+                                        onChange={handleFolderSelect}
+                                        className="border border-gray-300 bg-white text-xs w-24 rounded-sm focus:border-del-blue outline-none"
+                                    >
+                                        <option value="">+ Add...</option>
+                                        {allFolders.map(f => (
+                                            <option key={f} value={f}>{f}</option>
+                                        ))}
+                                        <option disabled>──────────</option>
+                                        <option value="___CREATE_NEW___">+ New Folder</option>
+                                    </select>
+                                )
                             )}
                         </div>
                         <p className="text-[10px] text-gray-400 mt-1">Type manual folders or select from list to append.</p>

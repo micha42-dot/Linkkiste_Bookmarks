@@ -6,6 +6,7 @@ interface AddBookmarkProps {
   onCancel: () => void;
   initialUrl?: string;
   initialTitle?: string;
+  allFolders?: string[];
   isPopup?: boolean;
 }
 
@@ -13,7 +14,8 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
     onSave, 
     onCancel, 
     initialUrl, 
-    initialTitle, 
+    initialTitle,
+    allFolders = [], 
     isPopup = false 
 }) => {
   const [url, setUrl] = useState(initialUrl || '');
@@ -24,6 +26,10 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
   const [toRead, setToRead] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchingMeta, setFetchingMeta] = useState(false);
+  
+  // Folder Creation State
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [newFolderTemp, setNewFolderTemp] = useState('');
 
   useEffect(() => {
     if (initialUrl && !url) setUrl(initialUrl);
@@ -54,6 +60,43 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
     } finally {
         setFetchingMeta(false);
     }
+  };
+
+  const handleFolderSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const val = e.target.value;
+      if (!val) return;
+      
+      if (val === '___CREATE_NEW___') {
+          setIsCreatingFolder(true);
+          // Don't modify folders yet
+      } else {
+          // Append existing
+          if (!folders.trim()) {
+              setFolders(val);
+          } else {
+              const current = folders.split(',').map(f => f.trim());
+              if (!current.includes(val)) {
+                  setFolders(folders + ', ' + val);
+              }
+          }
+      }
+      e.target.value = ''; // Reset select
+  };
+
+  const confirmNewFolder = () => {
+      const val = newFolderTemp.trim();
+      if (val) {
+          if (!folders.trim()) {
+              setFolders(val);
+          } else {
+              const current = folders.split(',').map(f => f.trim());
+              if (!current.includes(val)) {
+                  setFolders(folders + ', ' + val);
+              }
+          }
+      }
+      setNewFolderTemp('');
+      setIsCreatingFolder(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -176,13 +219,45 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
 
             <div>
               {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-600">Folder</label>}
-              <input
-                type="text"
-                className={`w-full border border-gray-300 p-2 focus:border-del-blue focus:ring-1 focus:ring-del-blue outline-none rounded-sm bg-yellow-50/50 ${isPopup ? 'text-xs' : 'text-sm'}`}
-                value={folders}
-                onChange={(e) => setFolders(e.target.value)}
-                placeholder={isPopup ? "📁 Folder" : "Work, Projects"}
-              />
+              <div className="flex gap-1">
+                  <input
+                    type="text"
+                    className={`w-full border border-gray-300 p-2 focus:border-del-blue focus:ring-1 focus:ring-del-blue outline-none rounded-sm bg-yellow-50/50 ${isPopup ? 'text-xs' : 'text-sm'}`}
+                    value={folders}
+                    onChange={(e) => setFolders(e.target.value)}
+                    placeholder={isPopup ? "📁 Folder" : "Work, Projects"}
+                  />
+                  
+                  {/* FOLDER DROPDOWN OR NEW INPUT */}
+                  {isCreatingFolder ? (
+                      <div className="absolute bg-white border border-gray-300 p-2 shadow-lg rounded-sm z-10 flex gap-1 right-0 sm:right-auto mt-8 w-48">
+                          <input 
+                              type="text" 
+                              autoFocus
+                              placeholder="New Folder Name" 
+                              className="text-xs border border-gray-200 p-1 w-full"
+                              value={newFolderTemp}
+                              onChange={(e) => setNewFolderTemp(e.target.value)}
+                              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), confirmNewFolder())}
+                          />
+                          <button onClick={confirmNewFolder} type="button" className="bg-del-blue text-white text-xs px-2 rounded-sm">OK</button>
+                      </div>
+                  ) : (
+                      allFolders && (
+                        <select 
+                            onChange={handleFolderSelect}
+                            className={`border border-gray-300 bg-white text-xs rounded-sm focus:border-del-blue outline-none w-8 ${isPopup ? 'p-0' : ''}`}
+                        >
+                            <option value="">+</option>
+                            {allFolders.map(f => (
+                                <option key={f} value={f}>{f}</option>
+                            ))}
+                            <option disabled>──────────</option>
+                            <option value="___CREATE_NEW___">+ New Folder</option>
+                        </select>
+                      )
+                  )}
+              </div>
             </div>
         </div>
 
