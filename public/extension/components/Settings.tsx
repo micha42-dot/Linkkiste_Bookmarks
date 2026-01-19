@@ -1,0 +1,411 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../services/supabaseClient';
+import { Session } from '@supabase/supabase-js';
+
+interface SettingsProps {
+  session: Session;
+}
+
+export const Settings: React.FC<SettingsProps> = ({ session }) => {
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ text: React.ReactNode; type: 'success' | 'error' } | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [lastBackup, setLastBackup] = useState<Date | null>(null);
+
+  // Extract project ID for display
+  const projectUrl = (supabase as any).supabaseUrl || 'Unknown';
+  const projectId = projectUrl.split('//')[1]?.split('.')[0] || 'Unknown';
+
+  useEffect(() => {
+    // Load current avatar
+    if (session.user.user_metadata?.avatar_url) {
+      setAvatarUrl(session.user.user_metadata.avatar_url);
+    }
+    
+    // Load last backup date
+    const storedBackup = localStorage.getItem('linkkiste_last_backup');
+    if (storedBackup) {
+        setLastBackup(new Date(storedBackup));
+    }
+  }, [session]);
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage(null);
+
+    const { error } = await supabase.auth.updateUser({ password: password });
+
+    if (error) {
+      setMessage({ text: error.message, type: 'error' });
+    } else {
+      setMessage({ text: 'Password updated successfully.', type: 'success' });
+      setPassword('');
+    }
+    setLoading(false);
+  };
+
+  const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      setUploading(true);
+      setMessage(null);
+
+      if (!event.target.files || event.target.files.length === 0) {
+        throw new Error('You must select an image to upload.');
+      }
+
+      const file = event.target.files[0];
+      
+      // Check type
+      if (file.type !== 'image/jpeg' && file.type !== 'image/jpg') {
+         throw new Error('Only JPG images are allowed.');
+      }
+
+      // Check dimensions
+      await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => {
+              if (img.width > 300 || img.height > 300) {
+                  reject(new Error('Image dimensions must be max 300x300 pixels.'));
+              } else {
+                  resolve(true);
+              }
+          };
+          img.onerror = () => reject(new Error('Invalid image file.'));
+          img.src = URL.createObjectURL(file);
+      });
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${session.user.id}-${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        if (uploadError.message.includes('bucket not found')) {
+            throw new Error('Storage bucket "avatars" not found. See Help section below.');
+        }
+        throw uploadError;
+      }
+
+      // Get public URL (assuming public bucket)
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+
+      // Update user metadata
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { avatar_url: publicUrl },
+      });
+
+      if (updateError) throw updateError;
+
+      setAvatarUrl(publicUrl);
+      setMessage({ text: 'Avatar uploaded successfully!', type: 'success' });
+      
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      
+      // Handle NetworkError for uploads
+      if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+        setMessage({ 
+          text: (
+            <div className="space-y-1">
+              <p className="font-bold">Verbindungsfehler beim Upload</p>
+              <p>Die Datei konnte nicht übertragen werden. Dies passiert oft, wenn ein <strong>Ad-Blocker</strong> (uBlock, Ghostery etc.) die Verbindung zu Supabase Storage blockiert.</p>
+              <p className="text-[10px]">Bitte schalte deinen Ad-Blocker für diese Seite aus.</p>
+            </div>
+          ), 
+          type: 'error' 
+        });
+      } else {
+        setMessage({ text: error.message, type: 'error' });
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const updateLastBackupDate = () => {
+      const now = new Date();
+      localStorage.setItem('linkkiste_last_backup', now.toISOString());
+      setLastBackup(now);
+  };
+
+  const handleSnooze = () => {
+      updateLastBackupDate();
+      setMessage({ text: 'Erinnerung wurde um 5 Tage verschoben.', type: 'success' });
+      setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleExport = async (format: 'csv' | 'xml' | 'sql') => {
+    setExporting(true);
+    try {
+        // Fetch ALL bookmarks for this user directly from DB
+        const { data: bookmarks, error } = await supabase
+            .from('bookmarks')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        if (!bookmarks || bookmarks.length === 0) {
+            alert('No bookmarks found to export.');
+            return;
+        }
+
+        let content = '';
+        let mimeType = 'text/plain';
+        let extension = 'txt';
+
+        const escapeXml = (unsafe: string | null) => {
+            if (!unsafe) return '';
+            return unsafe.replace(/[<>&'"]/g, (c) => {
+                switch (c) {
+                    case '<': return '&lt;';
+                    case '>': return '&gt;';
+                    case '&': return '&amp;';
+                    case '\'': return '&apos;';
+                    case '"': return '&quot;';
+                    default: return c;
+                }
+            });
+        };
+
+        if (format === 'csv') {
+            mimeType = 'text/csv';
+            extension = 'csv';
+            // Simple CSV implementation
+            const headers = ['Title', 'URL', 'Tags', 'Folders', 'Description', 'To Read', 'Created At'];
+            content = headers.join(',') + '\n';
+            
+            content += bookmarks.map(b => {
+                const escapeCsv = (field: any) => {
+                    const str = String(field || '').replace(/"/g, '""');
+                    return `"${str}"`;
+                };
+                return [
+                    escapeCsv(b.title),
+                    escapeCsv(b.url),
+                    escapeCsv(b.tags ? b.tags.join(' ') : ''),
+                    escapeCsv(b.folders ? b.folders.join(' ') : ''),
+                    escapeCsv(b.description),
+                    b.to_read ? 'true' : 'false',
+                    escapeCsv(b.created_at)
+                ].join(',');
+            }).join('\n');
+
+        } else if (format === 'xml') {
+            mimeType = 'application/xml';
+            extension = 'xml';
+            content = '<?xml version="1.0" encoding="UTF-8"?>\n<bookmarks>\n';
+            content += bookmarks.map(b => 
+`  <bookmark>
+    <title>${escapeXml(b.title)}</title>
+    <url>${escapeXml(b.url)}</url>
+    <tags>${escapeXml(b.tags ? b.tags.join(',') : '')}</tags>
+    <folders>${escapeXml(b.folders ? b.folders.join(',') : '')}</folders>
+    <description>${escapeXml(b.description)}</description>
+    <toread>${b.to_read}</toread>
+    <created>${b.created_at}</created>
+  </bookmark>`).join('\n');
+            content += '\n</bookmarks>';
+
+        } else if (format === 'sql') {
+            mimeType = 'text/plain';
+            extension = 'sql';
+            content = '-- LINKkiste Backup\n-- Generated ' + new Date().toISOString() + '\n\n';
+            content += bookmarks.map(b => {
+                const safeStr = (s: string | null) => s ? `'${s.replace(/'/g, "''")}'` : 'NULL';
+                const tagsStr = b.tags ? `'{${b.tags.map((t:string) => `"${t.replace(/"/g, '\\"')}"`).join(',')}}'` : "'{}'";
+                const foldersStr = b.folders ? `'{${b.folders.map((t:string) => `"${t.replace(/"/g, '\\"')}"`).join(',')}}'` : "'{}'";
+                
+                return `INSERT INTO bookmarks (url, title, description, tags, folders, to_read, created_at) VALUES (${safeStr(b.url)}, ${safeStr(b.title)}, ${safeStr(b.description)}, ${tagsStr}, ${foldersStr}, ${b.to_read}, '${b.created_at}');`;
+            }).join('\n');
+        }
+
+        // Trigger Download
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        // Includes creation date YYYY-MM-DD
+        a.download = `linkkiste_export_${new Date().toISOString().slice(0,10)}.${extension}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        // Update Backup State
+        updateLastBackupDate();
+
+    } catch (err: any) {
+        alert('Export failed: ' + err.message);
+    } finally {
+        setExporting(false);
+    }
+  };
+
+  const getDaysDiff = () => {
+      if (!lastBackup) return 999;
+      const diffTime = Math.abs(new Date().getTime() - lastBackup.getTime());
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }
+
+  const daysAgo = getDaysDiff();
+  const isOverdue = !lastBackup || daysAgo > 5;
+
+  return (
+    <div className="max-w-xl">
+      <h3 className="font-bold text-lg mb-6 border-b border-gray-200 pb-2">Profile Settings</h3>
+
+      {message && (
+        <div className={`mb-4 p-2 text-xs border ${message.type === 'success' ? 'bg-green-100 border-green-300 text-green-800' : 'bg-red-100 border-red-300 text-red-800'}`}>
+          {message.text}
+        </div>
+      )}
+
+      {/* Privacy Tip */}
+      <div className="mb-6 p-3 bg-yellow-50 border border-yellow-200 text-xs">
+          <h4 className="font-bold text-yellow-800 mb-1 uppercase tracking-tighter">🔒 Privatsphäre-Tipp</h4>
+          <p className="text-yellow-700 leading-relaxed">
+              Um deine LINKkiste wirklich "nur für dich" zu machen, solltest du im Supabase Dashboard unter 
+              <strong> Authentication &gt; Providers &gt; Email</strong> die Option <strong>"Allow new users to sign up"</strong> deaktivieren.
+          </p>
+      </div>
+
+      {/* Export Section */}
+      <div className="mb-8 p-4 bg-white border border-gray-200 shadow-sm">
+        <div className="flex justify-between items-start mb-3">
+            <h4 className="font-bold text-sm flex items-center gap-2">
+                <span>💾 Data Export & Backup</span>
+            </h4>
+        </div>
+
+        {/* OVERDUE WARNING */}
+        {isOverdue && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-sm flex flex-col gap-3">
+                <div className="flex items-start gap-3">
+                    <span className="text-2xl">⚠️</span>
+                    <div>
+                        <h5 className="font-bold text-red-800 text-sm">Backup überfällig!</h5>
+                        <p className="text-xs text-red-700 mt-1">
+                            Dein letztes lokales Backup ist {lastBackup ? `${daysAgo} Tage` : 'sehr lange'} her. 
+                            Zur Sicherheit solltest du deine Bookmarks exportieren.
+                        </p>
+                    </div>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row gap-2 mt-1 ml-0 sm:ml-9">
+                    <button 
+                        onClick={() => handleExport('sql')}
+                        className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 px-4 rounded-sm shadow-sm transition-colors text-center"
+                    >
+                        Jetzt Backup herunterladen (SQL)
+                    </button>
+                    <button 
+                        onClick={handleSnooze}
+                        className="bg-white border border-red-300 text-red-700 hover:bg-red-50 text-xs font-bold py-2 px-4 rounded-sm transition-colors text-center"
+                    >
+                        Erinnere mich nochmal in fünf Tagen
+                    </button>
+                </div>
+            </div>
+        )}
+        
+        <p className="text-xs text-gray-600 mb-4">
+            Manuelle Downloads für deine Datensicherung.
+            {!isOverdue && lastBackup && (
+                <span className="text-green-600 block mt-1 font-bold">
+                    ✓ Alles okay. Letztes Backup: {lastBackup.toLocaleDateString('de-DE')}
+                </span>
+            )}
+        </p>
+
+        <div className="flex gap-3">
+            <button 
+                onClick={() => handleExport('csv')} 
+                disabled={exporting}
+                className="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-black text-xs font-bold py-1.5 px-3 rounded-sm disabled:opacity-50"
+            >
+                {exporting ? '...' : 'Download CSV'}
+            </button>
+            <button 
+                onClick={() => handleExport('xml')} 
+                disabled={exporting}
+                className="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-black text-xs font-bold py-1.5 px-3 rounded-sm disabled:opacity-50"
+            >
+                {exporting ? '...' : 'Download XML'}
+            </button>
+            <button 
+                onClick={() => handleExport('sql')} 
+                disabled={exporting}
+                className="bg-del-blue hover:bg-blue-700 border border-blue-800 text-white text-xs font-bold py-1.5 px-3 rounded-sm disabled:opacity-50"
+            >
+                {exporting ? '...' : 'Download SQL (Restore File)'}
+            </button>
+        </div>
+      </div>
+
+      {/* System Status */}
+      <div className="mb-6 p-3 bg-blue-50 border border-blue-200 text-xs">
+          <h4 className="font-bold text-del-dark-blue mb-1">System Status</h4>
+          <div className="flex flex-col gap-1 text-gray-600">
+             <div><span className="font-bold">Connected Project ID:</span> {projectId}</div>
+             <div><span className="font-bold">URL:</span> {projectUrl}</div>
+          </div>
+      </div>
+
+      {/* Avatar Section */}
+      <div className="mb-8 p-4 bg-gray-50 border border-gray-200">
+        <h4 className="font-bold text-sm mb-2">User Photo</h4>
+        <div className="flex items-start gap-4">
+            <div className="w-16 h-16 bg-gray-200 border border-gray-300 flex items-center justify-center overflow-hidden">
+                {avatarUrl ? (
+                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                    <span className="text-gray-400 text-xs">No img</span>
+                )}
+            </div>
+            <div>
+                <label className="block text-xs font-bold mb-1">Upload new photo (JPG, max 300x300)</label>
+                <input 
+                    type="file" 
+                    accept="image/jpeg"
+                    onChange={uploadAvatar}
+                    disabled={uploading}
+                    className="text-xs text-gray-500"
+                />
+                {uploading && <span className="text-xs text-blue-600 ml-2">Uploading...</span>}
+            </div>
+        </div>
+      </div>
+
+      {/* Password Section */}
+      <form onSubmit={handlePasswordChange} className="p-4 bg-gray-50 border border-gray-200">
+        <h4 className="font-bold text-sm mb-4">Change Password</h4>
+        <div className="mb-4">
+            <label className="block text-xs font-bold mb-1">New Password</label>
+            <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full md:w-64 border border-gray-400 p-1.5 text-sm focus:border-retro-blue outline-none"
+                placeholder="Enter new password"
+                minLength={6}
+                required
+            />
+        </div>
+        <button
+            type="submit"
+            disabled={loading || !password}
+            className="bg-retro-blue text-white px-4 py-1 text-sm font-bold hover:bg-blue-800 disabled:opacity-50"
+        >
+            {loading ? 'Updating...' : 'Update Password'}
+        </button>
+      </form>
+    </div>
+  );
+};

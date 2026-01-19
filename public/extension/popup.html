@@ -1,80 +1,43 @@
 <!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body {
-      width: 400px;
-      height: 520px;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-      overflow: hidden;
-      background-color: #ffffff;
-    }
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-      display: block;
-    }
-    /* Setup View Styles */
-    #setup-view {
-      padding: 30px;
-      box-sizing: border-box;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      text-align: center;
-    }
-    h1 {
-      font-size: 18px;
-      color: #3274D1;
-      margin-top: 0;
-    }
-    input {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 15px;
-      box-sizing: border-box;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 14px;
-    }
-    button {
-      width: 100%;
-      background-color: #3274D1;
-      color: white;
-      border: none;
-      padding: 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: bold;
-      font-size: 14px;
-    }
-    button:hover { background-color: #245dc1; }
-    .hidden { display: none !important; }
-    .footer { font-size: 11px; color: #999; margin-top: 20px; }
-  </style>
-</head>
-<body>
-  
-  <!-- Setup View: Shown only if no URL is configured in the extension -->
-  <div id="setup-view" class="hidden">
-    <h1>Connect LinkKiste</h1>
-    <p style="font-size:13px; color:#555; margin-bottom:20px; line-height:1.4;">
-      Enter the URL where your LinkKiste app is deployed.<br>
-      (e.g. <code>https://my-bookmarks.vercel.app</code>)
-    </p>
-    <input type="url" id="instance-url" placeholder="https://..." />
-    <button id="save-setup">Connect</button>
-    <div class="footer">You only need to do this once.</div>
-  </div>
-
-  <!-- Main View: The Iframe loading the app -->
-  <iframe id="app-frame" class="hidden"></iframe>
-
-  <script src="popup.js"></script>
-</body>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LinkKiste Saver</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'del-blue': '#3274D1',
+              'del-dark-blue': '#245dc1',
+              'del-green': '#86C944',
+            },
+            fontFamily: {
+              'arial': ['Arial', 'Helvetica', 'sans-serif'],
+            },
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #FFFFFF;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 13px;
+        color: #333;
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+      }
+      /* Hide scrollbar for cleaner popup look */
+      ::-webkit-scrollbar { display: none; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/popup.tsx"></script>
+  </body>
 </html>
