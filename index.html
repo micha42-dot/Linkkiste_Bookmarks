@@ -73,14 +73,14 @@
 <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@19?dev",
-    "react-dom/client": "https://esm.sh/react-dom@19/client?dev",
-    "react-dom": "https://esm.sh/react-dom@19?dev",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.8",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
     "react/": "https://esm.sh/react@^19.2.3/",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "vite": "https://esm.sh/vite@^7.3.1"
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.90.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "path": "https://esm.sh/path@^0.12.7",
+    "url": "https://esm.sh/url@^0.11.4"
   }
 }
 </script>
@@ -93,10 +93,20 @@
     <script>
       window.addEventListener('error', function(e) {
         // Ignorieren von ResizeObserver Fehlern, die oft harmlos sind
-        if (e.message === 'ResizeObserver loop limit exceeded') return;
-
-        if (document.body.innerText.trim() === '') {
-           document.body.innerHTML = '<div style="padding:20px; font-family:sans-serif; color:red;"><h3>Application Crash</h3><p>' + e.message + '</p><p>Check console for details.</p></div>';
+        if (e.message && (e.message.includes('ResizeObserver') || e.message.includes('lockdown'))) return;
+        
+        console.error("Global Error:", e);
+        var root = document.getElementById('root');
+        
+        // Only show full screen error if the app hasn't loaded (root still says "loading" or is empty)
+        if (root && (!root.innerText || root.innerText.trim() === '')) {
+           var errorHtml = '<div style="padding:40px; font-family:sans-serif; color:#333; text-align:center; max-width:600px; margin:0 auto; line-height:1.6;">';
+           errorHtml += '<h3 style="margin-bottom:10px; color:#d32f2f;">Die App konnte nicht starten</h3>';
+           errorHtml += '<p style="margin-bottom:20px;">Ein unerwarteter Fehler ist aufgetreten.</p>';
+           errorHtml += '<div style="background:#f5f5f5; padding:10px; border-radius:4px; font-family:monospace; font-size:11px; text-align:left; overflow:auto; margin-bottom:20px;">' + (e.message || "Unknown Error") + '</div>';
+           errorHtml += '<button onclick="window.location.reload(true)" style="padding:10px 20px; background:#3274D1; color:white; border:none; border-radius:4px; cursor:pointer;">Neu laden</button>';
+           errorHtml += '</div>';
+           root.innerHTML = errorHtml;
         }
       });
     </script>

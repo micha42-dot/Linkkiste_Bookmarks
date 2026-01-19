@@ -11,9 +11,57 @@ import { About, Terms, Privacy } from './components/StaticPages';
 import { Bookmark, NewBookmark, ViewMode } from './types';
 import { Session } from '@supabase/supabase-js';
 
+// Extend window definition for our global flag
+declare global {
+  interface Window {
+    isPopupModeDetected?: boolean;
+  }
+}
+
 const App: React.FC = () => {
+  // 1. SYNCHRONOUS INITIALIZATION
+  const [isPopupMode] = useState(() => {
+    // Check our global flag from index.html head script
+    if (window.isPopupModeDetected) return true;
+
+    const params = new URLSearchParams(window.location.search);
+    const paramMode = params.get('mode') === 'popup';
+    
+    // Check Pathname (in case SPA fallback served index.html for popup.html)
+    const isPopupPath = window.location.pathname.includes('popup.html');
+
+    // Safety Fallback: If we are inside an iframe
+    const inIframe = (() => {
+        try {
+            return window.self !== window.top;
+        } catch (e) {
+            return true;
+        }
+    })();
+    
+    // Heuristic: If window is very narrow (extension popup width), assume popup
+    const isNarrow = window.innerWidth < 500 && inIframe;
+
+    return paramMode || isPopupPath || inIframe || isNarrow;
+  });
+
+  const [initialBookmarkData, setInitialBookmarkData] = useState<{url: string, title: string} | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const url = params.get('url');
+    const title = params.get('title');
+    if (url) return { url, title: title || url };
+    return null;
+  });
+
+  const [view, setView] = useState<ViewMode>(() => {
+    const params = new URLSearchParams(window.location.search);
+    // In popup mode, default to ADD unless explicitly listing
+    if (isPopupMode && !params.get('view')) return 'add';
+    // If incoming URL present, go to add
+    return params.get('url') ? 'add' : 'list';
+  });
+
   const [session, setSession] = useState<Session | null>(null);
-  const [view, setView] = useState<ViewMode>('list');
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterTag, setFilterTag] = useState<string | null>(null);
@@ -28,19 +76,30 @@ const App: React.FC = () => {
       return;
     }
 
+    // Styling helpers
+    if (isPopupMode) {
+        document.documentElement.classList.add('is-popup'); // Ensure global class
+        document.body.classList.add('popup-mode');
+        document.body.style.backgroundColor = 'white';
+        // Force add view if we have data
+        if (initialBookmarkData) setView('add');
+    } else {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('url')) {
+            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.replaceState({path: newUrl}, '', newUrl);
+        }
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
 
-    // Custom event listener for view changes from components
     const handleViewChange = (e: any) => setView(e.detail);
     window.addEventListener('changeView', handleViewChange);
 
@@ -48,12 +107,11 @@ const App: React.FC = () => {
         subscription.unsubscribe();
         window.removeEventListener('changeView', handleViewChange);
     };
-  }, []);
+  }, [isPopupMode]);
 
   const fetchBookmarks = async (isBackgroundUpdate = false) => {
     if (!session || !isSupabaseConfigured) return;
     
-    // Only show full loading spinner if we don't have data yet and it's not a background update
     if (!isBackgroundUpdate && bookmarks.length === 0) {
         setLoading(true);
     }
@@ -73,17 +131,16 @@ const App: React.FC = () => {
     setLoading(false);
   };
 
-  // Only re-fetch if the USER changes (login/logout), not on every token refresh
   useEffect(() => {
     if (session?.user?.id) {
       const hasData = bookmarks.length > 0;
-      fetchBookmarks(hasData); // Pass true if we already have data (silent update)
+      fetchBookmarks(hasData);
     }
   }, [session?.user?.id]); 
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setBookmarks([]); // Clear data on logout
+    setBookmarks([]);
   };
 
   const handleSaveBookmark = async (newBm: NewBookmark) => {
@@ -104,8 +161,13 @@ const App: React.FC = () => {
     if (error) {
         alert(`Error saving bookmark: ${error.message}`);
     } else {
-      await fetchBookmarks(true); // Silent update
-      setView('list');
+      if (isPopupMode) {
+          setInitialBookmarkData(null);
+          setView('list'); // This triggers Success Screen in Popup Mode render block
+      } else {
+          await fetchBookmarks(true);
+          setView('list');
+      }
     }
   };
 
@@ -123,133 +185,66 @@ const App: React.FC = () => {
   };
 
   const handleToggleRead = async (id: number, currentStatus: boolean) => {
-      // Optimistic update
       setBookmarks(bookmarks.map(b => b.id === id ? { ...b, to_read: !currentStatus } : b));
-
-      const { error } = await supabase
-        .from('bookmarks')
-        .update({ to_read: !currentStatus })
-        .eq('id', id);
-      
-      if (error) {
-          alert('Error updating: ' + error.message);
-          fetchBookmarks(true); // Revert
-      } 
+      const { error } = await supabase.from('bookmarks').update({ to_read: !currentStatus }).eq('id', id);
+      if (error) { alert('Error updating: ' + error.message); fetchBookmarks(true); } 
   };
 
   const handleSaveNotes = async (id: number, notes: string) => {
-      // Optimistic update local state
       setBookmarks(bookmarks.map(b => b.id === id ? { ...b, notes: notes } : b));
-
-      const { error } = await supabase
-        .from('bookmarks')
-        .update({ notes: notes })
-        .eq('id', id);
-      
-      if (error) {
-          alert('Error saving notes: ' + error.message + '\n\nMake sure you have run the migration SQL from "Database Settings".');
-      }
+      const { error } = await supabase.from('bookmarks').update({ notes: notes }).eq('id', id);
+      if (error) alert('Error saving notes: ' + error.message);
   };
 
   const handleAddFolderToBookmark = async (bookmarkId: number, folderName: string) => {
       const bm = bookmarks.find(b => b.id === bookmarkId);
       if (!bm) return;
-
-      // Clean folder name
       const cleanFolder = folderName.trim();
       if (!cleanFolder) return;
-
       const currentFolders = bm.folders || [];
-      if (currentFolders.includes(cleanFolder)) return; // Already exists
-
+      if (currentFolders.includes(cleanFolder)) return;
       const newFolders = [...currentFolders, cleanFolder];
-
-      // Optimistic update
       setBookmarks(bookmarks.map(b => b.id === bookmarkId ? { ...b, folders: newFolders } : b));
-
-      const { error } = await supabase
-        .from('bookmarks')
-        .update({ folders: newFolders })
-        .eq('id', bookmarkId);
-
-      if (error) {
-          alert('Error adding folder: ' + error.message);
-          fetchBookmarks(true); // Revert
-      }
+      const { error } = await supabase.from('bookmarks').update({ folders: newFolders }).eq('id', bookmarkId);
+      if (error) { alert('Error adding folder: ' + error.message); fetchBookmarks(true); }
   };
 
   const handleRemoveFolderFromBookmark = async (bookmarkId: number, folderName: string) => {
       const bm = bookmarks.find(b => b.id === bookmarkId);
       if (!bm) return;
-
       const newFolders = bm.folders?.filter(f => f !== folderName) || [];
-      
-      // Optimistic update
       setBookmarks(bookmarks.map(b => b.id === bookmarkId ? { ...b, folders: newFolders } : b));
-
-      const { error } = await supabase
-        .from('bookmarks')
-        .update({ folders: newFolders })
-        .eq('id', bookmarkId);
-
-      if (error) {
-          alert('Error updating bookmark: ' + error.message);
-          fetchBookmarks(true); // Revert on error
-      }
+      const { error } = await supabase.from('bookmarks').update({ folders: newFolders }).eq('id', bookmarkId);
+      if (error) { alert('Error updating bookmark: ' + error.message); fetchBookmarks(true); }
   };
 
   const handleDeleteEntireFolder = async (folderName: string) => {
-      if (!window.confirm(`Are you sure you want to delete the folder "${folderName}"? This will remove it from all bookmarks containing it.`)) {
-          return;
-      }
-
-      // Find all affected bookmarks
+      if (!window.confirm(`Delete folder "${folderName}"?`)) return;
       const affectedBookmarks = bookmarks.filter(b => b.folders?.includes(folderName));
       if (affectedBookmarks.length === 0) return;
-
       setLoading(true);
       try {
-          // Process updates in parallel
           const updates = affectedBookmarks.map(b => {
              const newFolders = b.folders?.filter(f => f !== folderName) || [];
              return supabase.from('bookmarks').update({ folders: newFolders }).eq('id', b.id);
           });
-
           await Promise.all(updates);
-          await fetchBookmarks(true); // Refetch to ensure state is clean
-          if (filterFolder === folderName) {
-              setFilterFolder(null); // Clear filter if we deleted the current folder
-          }
-      } catch (err: any) {
-          alert('Error deleting folder: ' + err.message);
-      } finally {
-          setLoading(false);
-      }
+          await fetchBookmarks(true);
+          if (filterFolder === folderName) setFilterFolder(null);
+      } catch (err: any) { alert('Error deleting folder: ' + err.message); } finally { setLoading(false); }
   };
 
   const handleSetFilterTag = (tag: string | null) => {
     setFilterTag(tag);
-    if (tag) {
-        setFilterFolder(null); // Clear folder filter if selecting a tag
-        if (view === 'tags' || view === 'unread' || view === 'folders' || view === 'detail') {
-            setView('list');
-        }
-    }
+    if (tag) { setFilterFolder(null); if (['tags', 'unread', 'folders', 'detail'].includes(view)) setView('list'); }
   };
 
   const handleSetFilterFolder = (folder: string | null) => {
       setFilterFolder(folder);
-      if (folder) {
-          setFilterTag(null); // Clear tag filter if selecting a folder
-          setView('list');
-      }
+      if (folder) { setFilterTag(null); setView('list'); }
   };
 
-  const handleViewDetail = (id: number) => {
-      setSelectedBookmarkId(id);
-      setView('detail');
-      window.scrollTo(0, 0);
-  };
+  const handleViewDetail = (id: number) => { setSelectedBookmarkId(id); setView('detail'); window.scrollTo(0, 0); };
 
   const displayedBookmarks = bookmarks.filter(b => {
       const matchesView = view === 'unread' ? b.to_read : true;
@@ -259,45 +254,83 @@ const App: React.FC = () => {
       const matchesSearch = !term || 
         b.title.toLowerCase().includes(term) || 
         b.url.toLowerCase().includes(term) ||
-        (b.description && b.description.toLowerCase().includes(term)) ||
-        (b.tags && b.tags.some(t => t.toLowerCase().includes(term))) ||
-        (b.folders && b.folders.some(f => f.toLowerCase().includes(term)));
-      
+        (b.description && b.description.toLowerCase().includes(term));
       return matchesView && matchesTag && matchesFolder && matchesSearch;
   });
 
   const selectedBookmark = bookmarks.find(b => b.id === selectedBookmarkId);
 
+  // --------------------------------------------------------------------------
+  // RENDER LOGIC
+  // --------------------------------------------------------------------------
+
+  // Config Screen (Responsive for Popup)
   if (!isSupabaseConfigured) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 font-sans p-8 text-center">
-          <div className="max-w-xl bg-white p-8 border border-gray-200 shadow-sm rounded">
-            <h1 className="text-xl font-bold text-red-600 mb-4">Connect your Database</h1>
-            <p className="mb-6 text-sm text-gray-700">
-                Die Anwendung ist bereit, aber es fehlen die Zugangsdaten für deine Supabase-Datenbank.
+      <div className={`flex flex-col items-center justify-center min-h-screen bg-gray-50 font-sans text-center ${isPopupMode ? 'p-2' : 'p-8'}`}>
+          <div className={`bg-white border border-gray-200 shadow-sm rounded ${isPopupMode ? 'p-4 w-full' : 'max-w-xl p-8'}`}>
+            <h1 className="text-xl font-bold text-red-600 mb-4">Setup Required</h1>
+            <p className="mb-4 text-sm text-gray-700">
+                Missing database credentials.
             </p>
             
-            <div className="text-left bg-gray-50 p-6 border border-gray-200 rounded text-sm mb-6">
-                <h3 className="font-bold text-gray-900 mb-2">So geht's:</h3>
-                <ol className="list-decimal pl-5 space-y-2 text-gray-700">
-                    <li>Erstelle eine Datei namens <code>.env</code> im Hauptverzeichnis.</li>
-                    <li>Füge den folgenden Inhalt ein (ersetze die Werte mit deinen Daten aus Supabase):</li>
-                </ol>
-                <div className="mt-4 p-3 bg-gray-800 text-gray-100 font-mono text-xs rounded overflow-x-auto">
-                    VITE_SUPABASE_URL=https://dein-projekt.supabase.co<br/>
-                    VITE_SUPABASE_ANON_KEY=dein-langer-anon-key-string
+            <div className="text-left bg-gray-50 p-4 border border-gray-200 rounded text-sm mb-4">
+                <p className="font-bold text-gray-900 mb-2">Create .env file:</p>
+                <div className="p-2 bg-gray-800 text-gray-100 font-mono text-[10px] rounded overflow-x-auto">
+                    VITE_SUPABASE_URL=...<br/>
+                    VITE_SUPABASE_ANON_KEY=...
                 </div>
             </div>
-
-            <div className="text-left bg-blue-50 p-4 border border-blue-100 rounded text-xs text-blue-800">
-                <p><strong>Deployment (Vercel/Cloudflare):</strong></p>
-                <p>Füge diese Variablen in den Projekteinstellungen unter "Environment Variables" hinzu.</p>
-            </div>
+            
+            {isPopupMode && (
+                <p className="text-xs text-blue-600 mt-2">
+                    Open the main app to see full setup instructions.
+                </p>
+            )}
           </div>
       </div>
     );
   }
 
+  // POPUP MODE (Extension)
+  if (isPopupMode) {
+      if (!session) {
+          return (
+            <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
+                <Auth isPopup={true} />
+            </div>
+          );
+      }
+
+      // Success Screen logic
+      if (view === 'list') {
+          return (
+              <div className="h-screen flex flex-col items-center justify-center bg-green-50 text-green-800 p-6 text-center">
+                  <div className="text-5xl mb-4 text-green-600">✓</div>
+                  <h2 className="font-bold text-xl mb-1">Saved</h2>
+                  <p className="text-xs text-green-700 opacity-80">to LinkKiste</p>
+                  <div className="mt-8">
+                     <button onClick={() => window.close()} className="text-xs underline hover:no-underline">Close window</button>
+                  </div>
+              </div>
+          );
+      }
+
+      // Add Bookmark Form
+      return (
+          <div className="min-h-screen bg-white px-5 py-4">
+               <AddBookmark 
+                  onSave={handleSaveBookmark}
+                  onCancel={() => window.close()}
+                  initialUrl={initialBookmarkData?.url}
+                  initialTitle={initialBookmarkData?.title}
+                  isPopup={true}
+                />
+          </div>
+      );
+  }
+
+  // STANDARD APP MODE
   if (!session) {
     return <Auth />;
   }
@@ -307,11 +340,7 @@ const App: React.FC = () => {
       userEmail={session.user.email} 
       onLogout={handleLogout}
       currentView={view}
-      setView={(v) => {
-          setView(v);
-          setFilterTag(null);
-          setFilterFolder(null);
-      }}
+      setView={(v) => { setView(v); setFilterTag(null); setFilterFolder(null); setInitialBookmarkData(null); }}
       searchTerm={searchTerm}
       setSearchTerm={setSearchTerm}
     >
@@ -335,10 +364,7 @@ const App: React.FC = () => {
             onAddClick={() => setView('add')}
           />
           <div className="mt-12 text-center">
-              <button 
-                onClick={() => setShowSqlHelp(!showSqlHelp)} 
-                className="text-[10px] text-gray-300 hover:text-gray-500 underline"
-              >
+              <button onClick={() => setShowSqlHelp(!showSqlHelp)} className="text-[10px] text-gray-300 hover:text-gray-500 underline">
                   {showSqlHelp ? 'Hide Database Help' : 'Database Settings'}
               </button>
           </div>
@@ -359,14 +385,13 @@ const App: React.FC = () => {
       {view === 'add' && (
         <AddBookmark 
           onSave={handleSaveBookmark}
-          onCancel={() => setView('list')}
+          onCancel={() => { setView('list'); setInitialBookmarkData(null); }}
+          initialUrl={initialBookmarkData?.url}
+          initialTitle={initialBookmarkData?.title}
         />
       )}
 
-      {view === 'settings' && (
-        <Settings session={session} />
-      )}
-      
+      {view === 'settings' && <Settings session={session} />}
       {view === 'about' && <About />}
       {view === 'terms' && <Terms />}
       {view === 'privacy' && <Privacy />}

@@ -16,6 +16,13 @@ let supabaseAnonKey = PLACEHOLDER_KEY;
 
 // Attempt to load from Environment Variables (Vite standard)
 if (import.meta && import.meta.env) {
+    // Debug Log to help verify Cloudflare Environment Variables
+    console.log('LINKkiste Init:', {
+        hasUrl: !!import.meta.env.VITE_SUPABASE_URL,
+        hasKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
+        mode: import.meta.env.MODE
+    });
+
     if (import.meta.env.VITE_SUPABASE_URL) {
         supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     }

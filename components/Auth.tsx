@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { supabase } from '../services/supabaseClient';
 
-export const Auth: React.FC = () => {
+interface AuthProps {
+    isPopup?: boolean;
+}
+
+export const Auth: React.FC<AuthProps> = ({ isPopup = false }) => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -68,22 +72,22 @@ export const Auth: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 font-arial px-4">
-      <div className="w-full max-w-[400px] bg-white border border-[#ccc] shadow-sm">
+    <div className={`flex flex-col items-center justify-center font-arial px-4 ${isPopup ? 'w-full' : 'min-h-screen bg-gray-50'}`}>
+      <div className={`w-full bg-white border border-[#ccc] shadow-sm ${isPopup ? 'border-none shadow-none max-w-full' : 'max-w-[400px]'}`}>
         
         {/* Delicious-style Header */}
-        <div className="bg-white p-6 pb-2 border-b border-[#eee]">
-            <div className="flex items-center gap-1 mb-2">
+        <div className={`bg-white border-b border-[#eee] ${isPopup ? 'pb-2 mb-2' : 'p-6 pb-2'}`}>
+            <div className={`flex items-center gap-1 ${isPopup ? 'justify-center mb-1' : 'mb-2'}`}>
                 <div className="w-6 h-6 bg-black mr-1"></div>
                 <div className="w-6 h-6 bg-del-blue mr-2"></div>
                 <h1 className="text-2xl font-bold tracking-tight text-gray-500">
                     <span className="text-black">link</span>kiste
                 </h1>
             </div>
-            <p className="text-xs text-gray-400 font-bold uppercase tracking-wide">just simple bookmarking</p>
+            {!isPopup && <p className="text-xs text-gray-400 font-bold uppercase tracking-wide">just simple bookmarking</p>}
         </div>
 
-        <div className="p-8 pt-6">
+        <div className={`${isPopup ? 'p-0' : 'p-8 pt-6'}`}>
             <div className="flex justify-between items-baseline mb-6">
                 <h2 className="text-sm font-bold text-[#333]">
                     {isSignUp ? 'Create Account' : 'Sign In'}
@@ -98,11 +102,12 @@ export const Auth: React.FC = () => {
             
             <form onSubmit={handleAuth} className="flex flex-col gap-4">
               <div>
-                <label className="block text-xs font-bold mb-1 text-gray-600" htmlFor="email">Email</label>
+                {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-600" htmlFor="email">Email</label>}
                 <input
                   id="email"
                   name="email"
                   autoComplete="email"
+                  placeholder={isPopup ? "Email" : ""}
                   className="w-full border border-[#ccc] p-3 text-base md:text-sm focus:border-del-blue outline-none rounded-sm"
                   type="email"
                   value={email}
@@ -111,11 +116,12 @@ export const Auth: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold mb-1 text-gray-600" htmlFor="password">Password</label>
+                {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-600" htmlFor="password">Password</label>}
                 <input
                   id="password"
                   name="password"
                   autoComplete="current-password"
+                   placeholder={isPopup ? "Password" : ""}
                   className="w-full border border-[#ccc] p-3 text-base md:text-sm focus:border-del-blue outline-none rounded-sm"
                   type="password"
                   value={password}
@@ -136,16 +142,18 @@ export const Auth: React.FC = () => {
 
               <button
                 type="submit"
-                className="mt-4 bg-del-green hover:bg-[#7bc038] text-white px-6 py-3 md:py-2 text-sm font-bold uppercase shadow-sm rounded-sm transition-colors w-full md:w-fit"
+                className={`mt-4 bg-del-green hover:bg-[#7bc038] text-white px-6 py-3 md:py-2 text-sm font-bold uppercase shadow-sm rounded-sm transition-colors w-full ${isPopup ? '' : 'md:w-fit'}`}
                 disabled={loading}
               >
                 {loading ? 'Working...' : (isSignUp ? 'Sign Up' : 'Login')}
               </button>
             </form>
 
-            <div className="mt-8 text-[10px] text-center border-t border-[#eee] pt-4 text-gray-400">
-              <p>Private System. {isSignUp ? 'Please register to start.' : 'Access restricted.'}</p>
-            </div>
+            {!isPopup && (
+                <div className="mt-8 text-[10px] text-center border-t border-[#eee] pt-4 text-gray-400">
+                <p>Private System. {isSignUp ? 'Please register to start.' : 'Access restricted.'}</p>
+                </div>
+            )}
         </div>
       </div>
     </div>
