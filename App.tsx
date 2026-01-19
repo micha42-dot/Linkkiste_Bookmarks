@@ -47,9 +47,20 @@ const App: React.FC = () => {
 
   const [initialBookmarkData, setInitialBookmarkData] = useState<{url: string, title: string} | null>(() => {
     const params = new URLSearchParams(window.location.search);
-    const url = params.get('url');
-    const title = params.get('title');
-    if (url) return { url, title: title || url };
+    let url = params.get('url');
+    let title = params.get('title');
+    const text = params.get('text'); // Common in Android Share
+
+    // Logic to handle mobile share targets
+    // Android often sends the URL inside 'text' if 'url' is empty
+    if (!url && text && text.startsWith('http')) {
+        url = text;
+    }
+    
+    // Sometimes text is the description or mixed.
+    if (url) {
+        return { url, title: title || url };
+    }
     return null;
   });
 
@@ -57,8 +68,10 @@ const App: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     // In popup mode, default to ADD unless explicitly listing
     if (isPopupMode && !params.get('view')) return 'add';
-    // If incoming URL present, go to add
-    return params.get('url') ? 'add' : 'list';
+    
+    // If incoming URL/Share Target present, go to add
+    const hasShareData = params.get('url') || params.get('text');
+    return hasShareData ? 'add' : 'list';
   });
 
   const [session, setSession] = useState<Session | null>(null);
@@ -85,7 +98,8 @@ const App: React.FC = () => {
         if (initialBookmarkData) setView('add');
     } else {
         const params = new URLSearchParams(window.location.search);
-        if (params.get('url')) {
+        // If we have share data (url/text), clean URL after processing but KEEP the view state
+        if (params.get('url') || params.get('text')) {
             const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
             window.history.replaceState({path: newUrl}, '', newUrl);
         }

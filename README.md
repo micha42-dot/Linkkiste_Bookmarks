@@ -20,6 +20,33 @@ Built with **React 19**, **Vite**, and **Supabase**. Designed for speed, privacy
 
 ---
 
+## 🧩 Browser Extension
+
+LinkKiste comes with a simple browser extension located in the `public/extension` folder. It allows you to save the current tab directly to your instance.
+
+### Installation
+
+**Firefox:**
+1. Open `about:debugging` in the address bar.
+2. Click **"This Firefox"** in the sidebar.
+3. Click **"Load Temporary Add-on"**.
+4. Navigate to your local project folder, go into `public/extension`, and select the `manifest.json` file.
+
+**Chrome / Edge / Brave:**
+1. Open `chrome://extensions` (or `edge://extensions`).
+2. Enable **"Developer mode"** (toggle in the top right corner).
+3. Click **"Load unpacked"**.
+4. Select the `public/extension` folder inside your project directory.
+
+### Configuration & Usage
+
+1. Click the new **LinkKiste icon** in your browser toolbar.
+2. **First run:** It will ask for your "LinkKiste URL". Enter the full URL where you deployed your app (e.g., `https://my-linkkiste.vercel.app`).
+3. Click **Connect**.
+4. Now, whenever you are on a page you want to keep, just click the icon. It opens a popup with the URL and Title pre-filled.
+
+---
+
 ## 🛠️ Prerequisites
 
 *   **Node.js** (v18 or higher)
