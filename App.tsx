@@ -7,7 +7,7 @@ import { BookmarkDetail } from './components/BookmarkDetail';
 import { AddBookmark } from './components/AddBookmark';
 import { Settings } from './components/Settings';
 import { SqlHelp } from './components/SqlHelp';
-import { About, Terms, Privacy } from './components/StaticPages';
+import { About, Terms, Privacy, MobileGuide } from './components/StaticPages';
 import { Bookmark, NewBookmark, ViewMode } from './types';
 import { Session } from '@supabase/supabase-js';
 
@@ -183,6 +183,17 @@ const App: React.FC = () => {
           setView('list');
       }
     }
+  };
+
+  const handleUpdateBookmark = async (id: number, updates: { title: string, url: string, description: string, tags: string[], folders: string[] }) => {
+      // Optimistic update
+      setBookmarks(bookmarks.map(b => b.id === id ? { ...b, ...updates } : b));
+      
+      const { error } = await supabase.from('bookmarks').update(updates).eq('id', id);
+      if (error) {
+          alert('Error updating bookmark: ' + error.message);
+          fetchBookmarks(true); // Revert on error
+      }
   };
 
   const handleDeleteBookmark = async (id: number) => {
@@ -390,6 +401,7 @@ const App: React.FC = () => {
           <BookmarkDetail 
             bookmark={selectedBookmark}
             onSaveNotes={handleSaveNotes}
+            onUpdate={handleUpdateBookmark}
             onClose={() => setView('list')}
             onDelete={handleDeleteBookmark}
             onToggleRead={handleToggleRead}
@@ -406,6 +418,7 @@ const App: React.FC = () => {
       )}
 
       {view === 'settings' && <Settings session={session} />}
+      {view === 'mobile-guide' && <MobileGuide />}
       {view === 'about' && <About />}
       {view === 'terms' && <Terms />}
       {view === 'privacy' && <Privacy />}

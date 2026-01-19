@@ -129,3 +129,37 @@ export const Privacy: React.FC = () => {
     </div>
   );
 };
+
+export const MobileGuide: React.FC = () => {
+    return (
+        <div className="max-w-2xl mx-auto py-8 text-gray-700">
+            <h2 className="text-2xl font-bold text-black mb-6">Mobile Installation</h2>
+            
+            <div className="space-y-6 text-sm leading-6">
+                <p>Linkkiste is designed as a Progressive Web App (PWA). You can install it on your home screen for a native app experience.</p>
+
+                <div className="bg-gray-50 p-4 border border-gray-200 rounded-sm">
+                    <h3 className="font-bold text-black mb-2 flex items-center gap-2">
+                        <span className="text-xl">🍎</span> iOS (Safari)
+                    </h3>
+                    <ol className="list-decimal pl-5 space-y-2 ml-1">
+                        <li>Tap the <span className="font-bold">Share</span> button (rectangle with arrow up) at the bottom of the screen.</li>
+                        <li>Scroll down and tap <span className="font-bold">Add to Home Screen</span>.</li>
+                        <li>Tap <span className="font-bold">Add</span> in the top right corner.</li>
+                    </ol>
+                </div>
+
+                <div className="bg-gray-50 p-4 border border-gray-200 rounded-sm">
+                    <h3 className="font-bold text-black mb-2 flex items-center gap-2">
+                        <span className="text-xl">🤖</span> Android (Chrome)
+                    </h3>
+                    <ol className="list-decimal pl-5 space-y-2 ml-1">
+                        <li>Tap the <span className="font-bold">Menu</span> button (three dots) in the top right corner.</li>
+                        <li>Tap <span className="font-bold">Install App</span> or <span className="font-bold">Add to Home screen</span>.</li>
+                        <li>Follow the on-screen instructions.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    );
+};

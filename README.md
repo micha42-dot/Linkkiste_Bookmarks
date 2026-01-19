@@ -4,8 +4,6 @@
 
 Built with **React 19**, **Vite**, and **Supabase**. Designed for speed, privacy, and simplicity.
 
-![Screenshot](./Screenshot1.png)
-
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![React](https://img.shields.io/badge/react-v19-blue)
 ![Supabase](https://img.shields.io/badge/backend-supabase-green)
