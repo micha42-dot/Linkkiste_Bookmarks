@@ -1,3 +1,4 @@
+
 export interface Bookmark {
   id: number;
   created_at: string;
@@ -7,6 +8,7 @@ export interface Bookmark {
   notes: string | null;
   tags: string[] | null;
   folders: string[] | null;
+  archive_url: string | null;
   user_id: string;
   to_read: boolean;
 }

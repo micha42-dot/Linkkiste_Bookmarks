@@ -5,6 +5,7 @@ interface BookmarkDetailProps {
   bookmark: Bookmark;
   onSaveNotes: (id: number, notes: string) => Promise<void>;
   onUpdate: (id: number, data: { title: string, url: string, description: string, tags: string[], folders: string[] }) => Promise<void>;
+  onArchive: (id: number, url: string) => void;
   allFolders: string[];
   onClose: () => void;
   onDelete: (id: number) => void;
@@ -15,6 +16,7 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
   bookmark, 
   onSaveNotes, 
   onUpdate,
+  onArchive,
   allFolders,
   onClose,
   onDelete,
@@ -412,13 +414,33 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
 
         {/* Footer Actions */}
         <div className="flex gap-4 pt-4 border-t border-gray-100 mt-8 justify-between items-center">
-            <div className="flex gap-4">
+            <div className="flex gap-4 items-center">
                 <button 
                     onClick={() => onToggleRead(bookmark.id, bookmark.to_read)}
                     className="text-xs font-bold text-gray-500 hover:text-del-blue uppercase"
                 >
                     {bookmark.to_read ? '✓ Mark as Read' : '○ Save for later'}
                 </button>
+                
+                {bookmark.archive_url ? (
+                     <a 
+                        href={bookmark.archive_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-white bg-black hover:bg-gray-800 px-2 py-1 rounded-sm text-xs font-bold uppercase tracking-wide flex items-center gap-1"
+                     >
+                        <span>🏛️</span> Archived
+                     </a>
+                ) : (
+                    <button 
+                        onClick={() => onArchive(bookmark.id, bookmark.url)}
+                        className="text-xs font-bold text-gray-500 hover:text-del-blue uppercase"
+                        title="Create snapshot on archive.is"
+                    >
+                        Archive Page
+                    </button>
+                )}
+                
                 <button 
                     onClick={handleDelete}
                     className="text-xs font-bold text-gray-400 hover:text-red-600 uppercase"

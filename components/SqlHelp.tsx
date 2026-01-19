@@ -29,7 +29,17 @@ export const SqlHelp: React.FC<SqlHelpProps> = ({ isOpen, onToggle }) => {
 
       <div className="space-y-8">
         <section className="bg-yellow-50 p-4 border border-yellow-200">
-          <h4 className="font-bold text-xs uppercase text-black mb-2">Step 4: Add Notes Support (Latest)</h4>
+          <h4 className="font-bold text-xs uppercase text-black mb-2">Step 5: Add Archive Support (Latest)</h4>
+          <p className="text-[11px] mb-2 text-gray-700">Run this to enable saving archive.is links:</p>
+          <div className="relative group">
+            <pre className="bg-gray-900 text-gray-100 p-4 rounded text-[11px] font-mono overflow-x-auto whitespace-pre select-all">
+{`alter table bookmarks add column archive_url text;`}
+            </pre>
+          </div>
+        </section>
+
+        <section className="bg-gray-50 p-4 border border-gray-200">
+          <h4 className="font-bold text-xs uppercase text-black mb-2">Step 4: Add Notes Support</h4>
           <p className="text-[11px] mb-2 text-gray-700">Run this to enable personal notes on bookmarks:</p>
           <div className="relative group">
             <pre className="bg-gray-900 text-gray-100 p-4 rounded text-[11px] font-mono overflow-x-auto whitespace-pre select-all">

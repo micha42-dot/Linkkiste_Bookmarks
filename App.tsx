@@ -205,6 +205,26 @@ const App: React.FC = () => {
       }
   };
 
+  const handleArchiveBookmark = async (id: number, url: string) => {
+      const archiveUrl = `https://archive.is/newest/${url}`;
+      
+      // 1. Optimistic update
+      setBookmarks(bookmarks.map(b => b.id === id ? { ...b, archive_url: archiveUrl } : b));
+
+      // 2. Open archive.is submission in new tab
+      window.open(`https://archive.is/?run=1&url=${encodeURIComponent(url)}`, '_blank');
+
+      // 3. Update DB
+      const { error } = await supabase
+        .from('bookmarks')
+        .update({ archive_url: archiveUrl })
+        .eq('id', id);
+      
+      if (error) {
+          alert('Error saving archive link: ' + error.message);
+      }
+  };
+
   const handleAddFolderToBookmark = async (bookmarkId: number, folderName: string) => {
       const bm = bookmarks.find(b => b.id === bookmarkId);
       if (!bm) return;
@@ -437,6 +457,7 @@ const App: React.FC = () => {
             bookmarks={displayedBookmarks}
             onDelete={handleDeleteBookmark}
             onToggleRead={handleToggleRead}
+            onArchive={handleArchiveBookmark}
             filterTag={filterTag}
             setFilterTag={handleSetFilterTag}
             filterFolder={filterFolder}
@@ -467,6 +488,7 @@ const App: React.FC = () => {
             bookmark={selectedBookmark}
             onSaveNotes={handleSaveNotes}
             onUpdate={handleUpdateBookmark}
+            onArchive={handleArchiveBookmark}
             allFolders={allFolders}
             onClose={() => setView('list')}
             onDelete={handleDeleteBookmark}
