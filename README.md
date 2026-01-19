@@ -169,9 +169,3 @@ Feel free to open issues or submit PRs. This is a passion project to keep the sp
 ## 📄 License
 
 MIT
-
-Feel free to open issues or submit PRs. This is a passion project to keep the spirit of the old web alive.
-
-## 📄 License
-
-MIT
