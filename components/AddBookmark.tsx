@@ -22,12 +22,12 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
   const [title, setTitle] = useState(initialTitle || '');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
-  const [folders, setFolders] = useState('');
   const [toRead, setToRead] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchingMeta, setFetchingMeta] = useState(false);
   
-  // Folder Creation State
+  // Folder Management
+  const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderTemp, setNewFolderTemp] = useState('');
 
@@ -68,16 +68,10 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
       
       if (val === '___CREATE_NEW___') {
           setIsCreatingFolder(true);
-          // Don't modify folders yet
       } else {
-          // Append existing
-          if (!folders.trim()) {
-              setFolders(val);
-          } else {
-              const current = folders.split(',').map(f => f.trim());
-              if (!current.includes(val)) {
-                  setFolders(folders + ', ' + val);
-              }
+          // Add if not exists
+          if (!selectedFolders.includes(val)) {
+              setSelectedFolders([...selectedFolders, val]);
           }
       }
       e.target.value = ''; // Reset select
@@ -86,17 +80,16 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
   const confirmNewFolder = () => {
       const val = newFolderTemp.trim();
       if (val) {
-          if (!folders.trim()) {
-              setFolders(val);
-          } else {
-              const current = folders.split(',').map(f => f.trim());
-              if (!current.includes(val)) {
-                  setFolders(folders + ', ' + val);
-              }
+          if (!selectedFolders.includes(val)) {
+              setSelectedFolders([...selectedFolders, val]);
           }
       }
       setNewFolderTemp('');
       setIsCreatingFolder(false);
+  };
+
+  const removeFolder = (folderToRemove: string) => {
+      setSelectedFolders(selectedFolders.filter(f => f !== folderToRemove));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -110,11 +103,6 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
       .map(t => t.trim().toLowerCase())
       .filter(t => t.length > 0);
 
-    const folderArray = folders
-      .split(/[,;]+/)
-      .map(f => f.trim())
-      .filter(f => f.length > 0);
-
     const finalTitle = title.trim() || url;
 
     await onSave({
@@ -122,7 +110,7 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
       title: finalTitle,
       description,
       tags: tagArray,
-      folders: folderArray,
+      folders: selectedFolders,
       to_read: toRead
     });
     
@@ -155,7 +143,7 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
       
       <form onSubmit={handleSubmit} className="space-y-4">
         
-        {/* URL Field - Less prominent in Popup as it's autofilled */}
+        {/* URL Field */}
         <div className="relative">
              {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-600">URL</label>}
              <div className="flex">
@@ -205,6 +193,7 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
 
         {/* Tags & Folders Row */}
         <div className="grid grid-cols-2 gap-3">
+            {/* TAGS INPUT */}
             <div>
               {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-600">Tags</label>}
               <input
@@ -213,29 +202,31 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
                 value={tags}
                 onChange={(e) => setTags(e.target.value)}
                 placeholder={isPopup ? "# Tags (comma)" : "news, tech"}
-                autoFocus={isPopup} // Focus tags first in popup for quick entry
+                autoFocus={isPopup} 
               />
+              {/* Tag Chips Display */}
+              <div className="flex flex-wrap gap-1 mt-1.5 min-h-[20px]">
+                {previewTags.map((t, i) => (
+                    <span key={i} className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-600 border border-gray-200 rounded-sm">
+                        {t}
+                    </span>
+                ))}
+                {previewTags.length === 0 && <span className="text-[10px] text-gray-300 italic">No tags</span>}
+              </div>
             </div>
 
+            {/* FOLDERS INPUT */}
             <div>
               {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-600">Folder</label>}
-              <div className="flex gap-1">
-                  <input
-                    type="text"
-                    className={`w-full border border-gray-300 p-2 focus:border-del-blue focus:ring-1 focus:ring-del-blue outline-none rounded-sm bg-yellow-50/50 ${isPopup ? 'text-xs' : 'text-sm'}`}
-                    value={folders}
-                    onChange={(e) => setFolders(e.target.value)}
-                    placeholder={isPopup ? "📁 Folder" : "Work, Projects"}
-                  />
-                  
-                  {/* FOLDER DROPDOWN OR NEW INPUT */}
+              
+              <div className="relative">
                   {isCreatingFolder ? (
-                      <div className="absolute bg-white border border-gray-300 p-2 shadow-lg rounded-sm z-10 flex gap-1 right-0 sm:right-auto mt-8 w-48">
+                      <div className="flex gap-1 w-full">
                           <input 
                               type="text" 
                               autoFocus
-                              placeholder="New Folder Name" 
-                              className="text-xs border border-gray-200 p-1 w-full"
+                              placeholder="New Folder..." 
+                              className={`border border-del-blue p-2 w-full outline-none rounded-sm ${isPopup ? 'text-xs' : 'text-sm'}`}
                               value={newFolderTemp}
                               onChange={(e) => setNewFolderTemp(e.target.value)}
                               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), confirmNewFolder())}
@@ -243,34 +234,38 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
                           <button onClick={confirmNewFolder} type="button" className="bg-del-blue text-white text-xs px-2 rounded-sm">OK</button>
                       </div>
                   ) : (
-                      allFolders && (
-                        <select 
-                            onChange={handleFolderSelect}
-                            className={`border border-gray-300 bg-white text-xs rounded-sm focus:border-del-blue outline-none w-8 ${isPopup ? 'p-0' : ''}`}
-                        >
-                            <option value="">+</option>
-                            {allFolders.map(f => (
-                                <option key={f} value={f}>{f}</option>
-                            ))}
-                            <option disabled>──────────</option>
-                            <option value="___CREATE_NEW___">+ New Folder</option>
-                        </select>
-                      )
+                    <select 
+                        onChange={handleFolderSelect}
+                        className={`w-full border border-gray-300 bg-white rounded-sm focus:border-del-blue outline-none cursor-pointer ${isPopup ? 'text-xs p-2' : 'text-sm p-2'}`}
+                    >
+                        <option value="">Select Folder...</option>
+                        {allFolders.map(f => (
+                            <option key={f} value={f}>{f}</option>
+                        ))}
+                        <option disabled>──────────</option>
+                        <option value="___CREATE_NEW___">+ Add new folder</option>
+                    </select>
                   )}
+              </div>
+
+              {/* Folder Chips Display */}
+              <div className="flex flex-wrap gap-1 mt-1.5 min-h-[20px]">
+                 {selectedFolders.map(folder => (
+                     <span key={folder} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-sm">
+                         📁 {folder}
+                         <button 
+                             type="button" 
+                             onClick={() => removeFolder(folder)}
+                             className="hover:text-red-600 font-bold"
+                         >
+                             ×
+                         </button>
+                     </span>
+                 ))}
+                 {selectedFolders.length === 0 && <span className="text-[10px] text-gray-300 italic">No folder</span>}
               </div>
             </div>
         </div>
-
-        {/* Tag Preview */}
-        {previewTags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-0">
-                {previewTags.map((t, i) => (
-                    <span key={i} className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-600 border border-gray-200 rounded-sm">
-                        #{t}
-                    </span>
-                ))}
-            </div>
-        )}
 
         <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-50">
             <input 

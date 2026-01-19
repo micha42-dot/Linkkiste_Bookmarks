@@ -18,6 +18,24 @@ Built with **React 19**, **Vite**, and **Supabase**. Designed for speed, privacy
 *   **Full Search:** Instantly filter by tag, URL, title, or description.
 *   **Import/Export:** Full data ownership with SQL, CSV, and XML export options.
 
+## 🔗 How to Save Links (The "Share Target" Feature)
+
+*Okay, here is the honest truth:* Since this is a self-hosted private tool, there is no magic "Install" button in the App Store that automatically sets up sharing. You have to wire it up yourself.
+
+### 🖥️ Desktop (Chrome/Edge/Brave)
+This project includes a **local browser extension** (in the `public/extension` folder) that lets you save links with one click.
+1.  Go to `chrome://extensions`.
+2.  Enable **Developer Mode** (toggle in top right).
+3.  Click **Load Unpacked**.
+4.  Select the `public/extension` folder inside this project directory.
+5.  Click the new icon in your toolbar and enter your App URL (e.g., `https://my-linkkiste.vercel.app`).
+
+### 📱 Mobile (Android/iOS)
+There is currently no native "Share to LinkKiste" system menu integration out of the box (requires complex PWA manifest configuration).
+1.  Open your deployed app in your mobile browser.
+2.  **Add to Home Screen** to install it as a PWA.
+3.  To save a link, copy the URL, open LinkKiste, and tap **+ Add**.
+
 ---
 
 ## 🛠️ Prerequisites

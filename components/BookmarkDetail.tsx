@@ -37,8 +37,12 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
   const [title, setTitle] = useState(bookmark.title);
   const [url, setUrl] = useState(bookmark.url);
   const [description, setDescription] = useState(bookmark.description || '');
-  const [tags, setTags] = useState(bookmark.tags ? bookmark.tags.join(', ') : '');
-  const [folders, setFolders] = useState(bookmark.folders ? bookmark.folders.join(', ') : '');
+  
+  // Tags are still edited as string, but we parse them for display
+  const [tagsStr, setTagsStr] = useState(bookmark.tags ? bookmark.tags.join(', ') : '');
+  
+  // Folders are managed as an array in the UI for Edit Mode
+  const [selectedFolders, setSelectedFolders] = useState<string[]>(bookmark.folders || []);
 
   // Sync internal state if prop changes (e.g. switching between bookmarks in detail view)
   useEffect(() => {
@@ -49,8 +53,8 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
     setTitle(bookmark.title);
     setUrl(bookmark.url);
     setDescription(bookmark.description || '');
-    setTags(bookmark.tags ? bookmark.tags.join(', ') : '');
-    setFolders(bookmark.folders ? bookmark.folders.join(', ') : '');
+    setTagsStr(bookmark.tags ? bookmark.tags.join(', ') : '');
+    setSelectedFolders(bookmark.folders || []);
   }, [bookmark.id]);
 
   const handleSaveNotesAction = async () => {
@@ -68,15 +72,14 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
   const handleSaveMetaAction = async () => {
     setIsSavingMeta(true);
     try {
-        const tagArray = tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
-        const folderArray = folders.split(/[;,]+/).map(f => f.trim()).filter(f => f.length > 0);
+        const tagArray = tagsStr.split(',').map(t => t.trim()).filter(t => t.length > 0);
         
         await onUpdate(bookmark.id, {
             title,
             url,
             description,
             tags: tagArray,
-            folders: folderArray
+            folders: selectedFolders
         });
         setIsEditingMeta(false);
     } catch (e) {
@@ -98,15 +101,9 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
       if (selected === '___CREATE_NEW___') {
           setIsCreatingFolder(true);
       } else {
-          // If folders is empty, set it. If not, append with comma
-          if (!folders.trim()) {
-              setFolders(selected);
-          } else {
-              // Check if already exists in text to avoid duplicates
-              const current = folders.split(',').map(f => f.trim());
-              if (!current.includes(selected)) {
-                  setFolders(folders + ', ' + selected);
-              }
+          // Add if not exists
+          if (!selectedFolders.includes(selected)) {
+              setSelectedFolders([...selectedFolders, selected]);
           }
       }
       e.target.value = ''; // Reset select
@@ -115,18 +112,24 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
   const confirmNewFolder = () => {
       const val = newFolderTemp.trim();
       if (val) {
-          if (!folders.trim()) {
-              setFolders(val);
-          } else {
-              const current = folders.split(',').map(f => f.trim());
-              if (!current.includes(val)) {
-                  setFolders(folders + ', ' + val);
-              }
+          if (!selectedFolders.includes(val)) {
+              setSelectedFolders([...selectedFolders, val]);
           }
       }
       setNewFolderTemp('');
       setIsCreatingFolder(false);
   }
+
+  const removeFolder = (folder: string) => {
+      setSelectedFolders(selectedFolders.filter(f => f !== folder));
+  };
+
+  // Helper to remove tag from string if user clicks 'x' on chip
+  const removeTag = (tagToRemove: string) => {
+      const currentTags = tagsStr.split(',').map(t => t.trim()).filter(t => t.length > 0);
+      const newTags = currentTags.filter(t => t !== tagToRemove);
+      setTagsStr(newTags.join(', '));
+  };
 
   const dateStr = new Date(bookmark.created_at).toLocaleDateString('de-DE', { 
     weekday: 'long', 
@@ -144,6 +147,9 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
       }
   }
 
+  // Derived chips for tags
+  const tagChips = tagsStr.split(',').map(t => t.trim()).filter(t => t.length > 0);
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Navigation */}
@@ -157,7 +163,7 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
              {!isEditingMeta && (
                 <button 
                     onClick={() => setIsEditingMeta(true)}
-                    className="text-del-blue bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-sm flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide"
+                    className="bg-del-green hover:bg-[#7bc038] text-white px-3 py-1.5 rounded-sm flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide shadow-sm transition-colors"
                 >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                     Edit Details
@@ -202,35 +208,46 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
                         className="w-full border p-2 text-sm rounded-sm focus:border-del-blue outline-none h-20 resize-none" 
                     />
                 </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     {/* TAGS EDIT */}
                      <div>
                         <label className="block text-xs font-bold text-gray-600 mb-1">Tags (comma separated)</label>
                         <input 
                             type="text" 
-                            value={tags} 
-                            onChange={(e) => setTags(e.target.value)} 
+                            value={tagsStr} 
+                            onChange={(e) => setTagsStr(e.target.value)} 
                             className="w-full border p-2 text-sm rounded-sm focus:border-del-blue outline-none" 
                         />
+                         {/* Tag Chips Display */}
+                         <div className="flex flex-wrap gap-1 mt-2 min-h-[24px] p-2 bg-white border border-gray-100 rounded-sm">
+                            {tagChips.length === 0 && <span className="text-[10px] text-gray-300 italic">No tags selected</span>}
+                            {tagChips.map((t, i) => (
+                                <span key={i} className="inline-flex items-center gap-1 text-[10px] px-2 py-1 bg-gray-100 text-gray-600 border border-gray-200 rounded-sm">
+                                    {t}
+                                    <button 
+                                        type="button" 
+                                        onClick={() => removeTag(t)}
+                                        className="hover:text-red-600 font-bold ml-1"
+                                    >
+                                        ×
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
                     </div>
+
+                    {/* FOLDERS EDIT */}
                     <div>
                         <label className="block text-xs font-bold text-gray-600 mb-1">Folders</label>
-                        <div className="flex gap-2 relative">
-                            <input 
-                                type="text" 
-                                value={folders} 
-                                onChange={(e) => setFolders(e.target.value)} 
-                                className="w-full border p-2 text-sm rounded-sm focus:border-del-blue outline-none bg-yellow-50/50" 
-                                placeholder="Folder1, Folder2..."
-                            />
-                            
-                            {/* Folder Dropdown OR New Input */}
+                        <div className="relative">
                             {isCreatingFolder ? (
-                                <div className="absolute top-10 right-0 bg-white border border-gray-300 p-2 shadow-lg rounded-sm z-10 flex gap-1 w-48">
+                                <div className="flex gap-1 w-full">
                                     <input 
                                         type="text" 
                                         autoFocus
-                                        placeholder="New Folder Name" 
-                                        className="text-xs border border-gray-200 p-1 w-full"
+                                        placeholder="New Folder..." 
+                                        className="border border-del-blue p-2 w-full text-sm outline-none rounded-sm"
                                         value={newFolderTemp}
                                         onChange={(e) => setNewFolderTemp(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), confirmNewFolder())}
@@ -238,24 +255,39 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
                                     <button onClick={confirmNewFolder} type="button" className="bg-del-blue text-white text-xs px-2 rounded-sm">OK</button>
                                 </div>
                             ) : (
-                                (allFolders.length > 0 || true) && (
-                                    <select 
-                                        onChange={handleFolderSelect}
-                                        className="border border-gray-300 bg-white text-xs w-24 rounded-sm focus:border-del-blue outline-none"
-                                    >
-                                        <option value="">+ Add...</option>
-                                        {allFolders.map(f => (
-                                            <option key={f} value={f}>{f}</option>
-                                        ))}
-                                        <option disabled>──────────</option>
-                                        <option value="___CREATE_NEW___">+ New Folder</option>
-                                    </select>
-                                )
+                                <select 
+                                    onChange={handleFolderSelect}
+                                    className="w-full border border-gray-300 bg-white p-2 text-sm rounded-sm focus:border-del-blue outline-none cursor-pointer"
+                                >
+                                    <option value="">Select Folder to add...</option>
+                                    {allFolders.map(f => (
+                                        <option key={f} value={f}>{f}</option>
+                                    ))}
+                                    <option disabled>──────────</option>
+                                    <option value="___CREATE_NEW___">+ Add new folder</option>
+                                </select>
                             )}
                         </div>
-                        <p className="text-[10px] text-gray-400 mt-1">Type manual folders or select from list to append.</p>
+                        
+                        {/* Folder Chips Display */}
+                        <div className="flex flex-wrap gap-1 mt-2 min-h-[24px] p-2 bg-white border border-gray-100 rounded-sm">
+                             {selectedFolders.length === 0 && <span className="text-[10px] text-gray-300 italic">No folders selected</span>}
+                             {selectedFolders.map(folder => (
+                                 <span key={folder} className="inline-flex items-center gap-1 text-[10px] px-2 py-1 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-sm">
+                                     📁 {folder}
+                                     <button 
+                                         type="button" 
+                                         onClick={() => removeFolder(folder)}
+                                         className="hover:text-red-600 font-bold ml-1"
+                                     >
+                                         ×
+                                     </button>
+                                 </span>
+                             ))}
+                        </div>
                     </div>
                 </div>
+
                 <div className="flex gap-2 pt-2 border-t border-gray-200 mt-2">
                     <button 
                         onClick={handleSaveMetaAction}
