@@ -152,7 +152,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUpdateBookmark = async (id: number, updates: { title: string, url: string, description: string, tags: string[], folders: string[] }) => {
+  const handleUpdateBookmark = async (id: number, updates: { title: string, url: string, description: string, tags: string[], folders: string[], archive_url?: string | null }) => {
       // Optimistic update
       setBookmarks(bookmarks.map(b => b.id === id ? { ...b, ...updates } : b));
       
@@ -206,13 +206,15 @@ const App: React.FC = () => {
   };
 
   const handleArchiveBookmark = async (id: number, url: string) => {
-      const archiveUrl = `https://archive.is/newest/${url}`;
+      const baseUrl = localStorage.getItem('linkkiste_archive_base') || 'https://archive.is';
+      const archiveUrl = `${baseUrl}/newest/${url}`;
       
       // 1. Optimistic update
       setBookmarks(bookmarks.map(b => b.id === id ? { ...b, archive_url: archiveUrl } : b));
 
-      // 2. Open archive.is submission in new tab
-      window.open(`https://archive.is/?run=1&url=${encodeURIComponent(url)}`, '_blank');
+      // 2. Open archive service submission in new tab
+      // Most archive sites (archive.is, archive.ph) support /?run=1&url=...
+      window.open(`${baseUrl}/?run=1&url=${encodeURIComponent(url)}`, '_blank');
 
       // 3. Update DB
       const { error } = await supabase

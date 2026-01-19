@@ -14,6 +14,9 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
   const [uploading, setUploading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [lastBackup, setLastBackup] = useState<Date | null>(null);
+  
+  // Custom Archive Domain
+  const [archiveDomain, setArchiveDomain] = useState('https://archive.is');
 
   // Extract project ID for display
   const projectUrl = (supabase as any).supabaseUrl || 'Unknown';
@@ -29,6 +32,12 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
     const storedBackup = localStorage.getItem('linkkiste_last_backup');
     if (storedBackup) {
         setLastBackup(new Date(storedBackup));
+    }
+
+    // Load archive setting
+    const storedArchive = localStorage.getItem('linkkiste_archive_base');
+    if (storedArchive) {
+        setArchiveDomain(storedArchive);
     }
   }, [session]);
 
@@ -46,6 +55,19 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
       setPassword('');
     }
     setLoading(false);
+  };
+
+  const saveArchiveDomain = () => {
+      let domain = archiveDomain.trim();
+      // Ensure no trailing slash
+      if(domain.endsWith('/')) domain = domain.slice(0, -1);
+      // Ensure protocol
+      if(!domain.startsWith('http')) domain = 'https://' + domain;
+      
+      localStorage.setItem('linkkiste_archive_base', domain);
+      setArchiveDomain(domain);
+      setMessage({ text: `Archive service updated to ${domain}`, type: 'success' });
+      setTimeout(() => setMessage(null), 3000);
   };
 
   const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -178,7 +200,7 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
             mimeType = 'text/csv';
             extension = 'csv';
             // Simple CSV implementation
-            const headers = ['Title', 'URL', 'Tags', 'Folders', 'Description', 'To Read', 'Created At'];
+            const headers = ['Title', 'URL', 'Tags', 'Folders', 'Description', 'To Read', 'Created At', 'Archive URL'];
             content = headers.join(',') + '\n';
             
             content += bookmarks.map(b => {
@@ -193,7 +215,8 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
                     escapeCsv(b.folders ? b.folders.join(' ') : ''),
                     escapeCsv(b.description),
                     b.to_read ? 'true' : 'false',
-                    escapeCsv(b.created_at)
+                    escapeCsv(b.created_at),
+                    escapeCsv(b.archive_url)
                 ].join(',');
             }).join('\n');
 
@@ -210,6 +233,7 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
     <description>${escapeXml(b.description)}</description>
     <toread>${b.to_read}</toread>
     <created>${b.created_at}</created>
+    <archive>${escapeXml(b.archive_url)}</archive>
   </bookmark>`).join('\n');
             content += '\n</bookmarks>';
 
@@ -222,7 +246,7 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
                 const tagsStr = b.tags ? `'{${b.tags.map((t:string) => `"${t.replace(/"/g, '\\"')}"`).join(',')}}'` : "'{}'";
                 const foldersStr = b.folders ? `'{${b.folders.map((t:string) => `"${t.replace(/"/g, '\\"')}"`).join(',')}}'` : "'{}'";
                 
-                return `INSERT INTO bookmarks (url, title, description, tags, folders, to_read, created_at) VALUES (${safeStr(b.url)}, ${safeStr(b.title)}, ${safeStr(b.description)}, ${tagsStr}, ${foldersStr}, ${b.to_read}, '${b.created_at}');`;
+                return `INSERT INTO bookmarks (url, title, description, tags, folders, to_read, created_at, archive_url) VALUES (${safeStr(b.url)}, ${safeStr(b.title)}, ${safeStr(b.description)}, ${tagsStr}, ${foldersStr}, ${b.to_read}, '${b.created_at}', ${safeStr(b.archive_url)});`;
             }).join('\n');
         }
 
@@ -274,6 +298,35 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
               Um deine LINKkiste wirklich "nur für dich" zu machen, solltest du im Supabase Dashboard unter 
               <strong> Authentication &gt; Providers &gt; Email</strong> die Option <strong>"Allow new users to sign up"</strong> deaktivieren.
           </p>
+      </div>
+
+      {/* Configuration */}
+      <div className="mb-8 p-4 bg-white border border-gray-200 shadow-sm">
+        <h4 className="font-bold text-sm flex items-center gap-2 mb-3">
+            <span>⚙️ Configuration</span>
+        </h4>
+        
+        <div className="mb-2">
+            <label className="block text-xs font-bold text-gray-600 mb-1">Archive Service Domain</label>
+            <div className="flex gap-2">
+                <input 
+                    type="text" 
+                    value={archiveDomain}
+                    onChange={(e) => setArchiveDomain(e.target.value)}
+                    className="border border-gray-300 p-1.5 text-xs rounded-sm w-64 outline-none focus:border-del-blue"
+                    placeholder="https://archive.is"
+                />
+                <button 
+                    onClick={saveArchiveDomain}
+                    className="bg-gray-100 border border-gray-300 hover:bg-gray-200 text-xs px-3 rounded-sm font-bold"
+                >
+                    Save
+                </button>
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1">
+                Used when creating new snapshots. Examples: <code>https://archive.is</code>, <code>https://archive.ph</code>, <code>https://archive.today</code>.
+            </p>
+        </div>
       </div>
 
       {/* Export Section */}

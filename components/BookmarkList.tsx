@@ -251,8 +251,21 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                 </div>
                             )}
 
-                             {/* Folders */}
+                             {/* Folders & Archive Badge */}
                              <div className="flex flex-wrap gap-1 mr-2 items-center">
+                                {/* Archived Badge - styled like folders */}
+                                {bm.archive_url && (
+                                     <a 
+                                        href={bm.archive_url}
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="group/archive flex items-center gap-0 bg-gray-50 border border-transparent hover:border-gray-200 rounded px-1 transition-colors text-[10px] text-gray-500 hover:text-del-blue py-0.5"
+                                        title="View archived version"
+                                     >
+                                         archived
+                                     </a>
+                                )}
+
                                 {bm.folders && bm.folders.map(folder => (
                                     <div key={folder} className="group/folder flex items-center gap-0 bg-gray-50 border border-transparent hover:border-gray-200 rounded px-1 transition-colors">
                                             <button
@@ -305,24 +318,18 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                     permalink
                                 </button>
 
-                                <span className="text-gray-200 hidden md:inline">|</span>
-                                {bm.archive_url ? (
-                                     <a 
-                                        href={bm.archive_url} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer" 
-                                        className="text-white bg-black hover:bg-gray-800 px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wide flex items-center gap-1"
-                                     >
-                                        <span>🏛️</span> Archived
-                                     </a>
-                                ) : (
-                                    <button 
-                                        onClick={() => onArchive(bm.id, bm.url)} 
-                                        className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase"
-                                        title="Create snapshot on archive.is"
-                                    >
-                                        Archive Page
-                                    </button>
+                                {/* Only show 'Archive Page' action if NOT archived yet, since the archived link is now a visible badge */}
+                                {!bm.archive_url && (
+                                    <>
+                                        <span className="text-gray-200 hidden md:inline">|</span>
+                                        <button 
+                                            onClick={() => onArchive(bm.id, bm.url)} 
+                                            className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase"
+                                            title="Create snapshot on archive.is"
+                                        >
+                                            Archive Page
+                                        </button>
+                                    </>
                                 )}
 
                                 {filterFolder && bm.folders?.includes(filterFolder) && (

@@ -4,7 +4,7 @@ import { Bookmark } from '../types';
 interface BookmarkDetailProps {
   bookmark: Bookmark;
   onSaveNotes: (id: number, notes: string) => Promise<void>;
-  onUpdate: (id: number, data: { title: string, url: string, description: string, tags: string[], folders: string[] }) => Promise<void>;
+  onUpdate: (id: number, data: { title: string, url: string, description: string, tags: string[], folders: string[], archive_url?: string | null }) => Promise<void>;
   onArchive: (id: number, url: string) => void;
   allFolders: string[];
   onClose: () => void;
@@ -39,7 +39,8 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
   const [title, setTitle] = useState(bookmark.title);
   const [url, setUrl] = useState(bookmark.url);
   const [description, setDescription] = useState(bookmark.description || '');
-  
+  const [archiveUrl, setArchiveUrl] = useState(bookmark.archive_url || '');
+
   // Tags are still edited as string, but we parse them for display
   const [tagsStr, setTagsStr] = useState(bookmark.tags ? bookmark.tags.join(', ') : '');
   
@@ -57,6 +58,7 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
     setDescription(bookmark.description || '');
     setTagsStr(bookmark.tags ? bookmark.tags.join(', ') : '');
     setSelectedFolders(bookmark.folders || []);
+    setArchiveUrl(bookmark.archive_url || '');
   }, [bookmark.id]);
 
   const handleSaveNotesAction = async () => {
@@ -81,7 +83,8 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
             url,
             description,
             tags: tagArray,
-            folders: selectedFolders
+            folders: selectedFolders,
+            archive_url: archiveUrl.trim() || null
         });
         setIsEditingMeta(false);
     } catch (e) {
@@ -199,6 +202,16 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
                         type="url" 
                         value={url} 
                         onChange={(e) => setUrl(e.target.value)} 
+                        className="w-full border p-2 text-xs text-gray-500 rounded-sm focus:border-del-blue outline-none" 
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Archive URL (snapshot)</label>
+                    <input 
+                        type="url" 
+                        value={archiveUrl} 
+                        onChange={(e) => setArchiveUrl(e.target.value)} 
+                        placeholder="https://archive.is/..."
                         className="w-full border p-2 text-xs text-gray-500 rounded-sm focus:border-del-blue outline-none" 
                     />
                 </div>
