@@ -1,4 +1,4 @@
-const CACHE_NAME = 'linkkiste-v2';
+const CACHE_NAME = 'linkkiste-v1';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -41,11 +41,6 @@ self.addEventListener('fetch', (event) => {
   // Don't cache Supabase API calls aggressively to ensure data freshness
   if (event.request.url.includes('supabase.co')) {
       return;
-  }
-  
-  // Don't cache extension popup requests (timestamped)
-  if (event.request.url.includes('mode=popup') || event.request.url.includes('&t=')) {
-      return; // Go straight to network
   }
 
   event.respondWith(

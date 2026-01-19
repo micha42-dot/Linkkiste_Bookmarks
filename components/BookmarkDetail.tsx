@@ -5,6 +5,7 @@ interface BookmarkDetailProps {
   bookmark: Bookmark;
   onSaveNotes: (id: number, notes: string) => Promise<void>;
   onUpdate: (id: number, data: { title: string, url: string, description: string, tags: string[], folders: string[] }) => Promise<void>;
+  allFolders: string[];
   onClose: () => void;
   onDelete: (id: number) => void;
   onToggleRead: (id: number, status: boolean) => void;
@@ -14,6 +15,7 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
   bookmark, 
   onSaveNotes, 
   onUpdate,
+  allFolders,
   onClose,
   onDelete,
   onToggleRead
@@ -85,6 +87,23 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
       setIsEditingNotes(false);
   };
 
+  const handleAddExistingFolder = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const selected = e.target.value;
+      if (!selected) return;
+      
+      // If folders is empty, set it. If not, append with comma
+      if (!folders.trim()) {
+          setFolders(selected);
+      } else {
+          // Check if already exists in text to avoid duplicates
+          const current = folders.split(',').map(f => f.trim());
+          if (!current.includes(selected)) {
+              setFolders(folders + ', ' + selected);
+          }
+      }
+      e.target.value = ''; // Reset select
+  };
+
   const dateStr = new Date(bookmark.created_at).toLocaleDateString('de-DE', { 
     weekday: 'long', 
     year: 'numeric', 
@@ -108,14 +127,31 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
         <button onClick={onClose} className="text-xs font-bold text-del-blue hover:underline">
             &laquo; back to list
         </button>
-        <span className="text-[10px] text-gray-400">Permalink View</span>
+        
+        <div className="flex gap-4 items-center">
+             {/* EDIT BUTTON (Permanent sichtbar) */}
+             {!isEditingMeta && (
+                <button 
+                    onClick={() => setIsEditingMeta(true)}
+                    className="text-del-blue bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-sm flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide"
+                >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                    Edit Details
+                </button>
+             )}
+             <span className="text-[10px] text-gray-400">Permalink View</span>
+        </div>
       </div>
 
       <div className="bg-white p-6 border border-gray-200 shadow-sm rounded-sm">
         
         {/* EDIT META FORM */}
         {isEditingMeta ? (
-            <div className="mb-8 space-y-4 bg-gray-50 p-4 border border-blue-200 rounded">
+            <div className="mb-8 space-y-4 bg-gray-50 p-6 border border-blue-200 rounded">
+                <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-bold text-sm text-del-blue uppercase">Edit Bookmark</h3>
+                </div>
+
                 <div>
                     <label className="block text-xs font-bold text-gray-600 mb-1">Title</label>
                     <input 
@@ -142,7 +178,7 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
                         className="w-full border p-2 text-sm rounded-sm focus:border-del-blue outline-none h-20 resize-none" 
                     />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div>
                         <label className="block text-xs font-bold text-gray-600 mb-1">Tags (comma separated)</label>
                         <input 
@@ -154,15 +190,31 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-600 mb-1">Folders</label>
-                        <input 
-                            type="text" 
-                            value={folders} 
-                            onChange={(e) => setFolders(e.target.value)} 
-                            className="w-full border p-2 text-sm rounded-sm focus:border-del-blue outline-none bg-yellow-50/50" 
-                        />
+                        <div className="flex gap-2">
+                            <input 
+                                type="text" 
+                                value={folders} 
+                                onChange={(e) => setFolders(e.target.value)} 
+                                className="w-full border p-2 text-sm rounded-sm focus:border-del-blue outline-none bg-yellow-50/50" 
+                                placeholder="Folder1, Folder2..."
+                            />
+                            {/* Folder Dropdown */}
+                            {allFolders.length > 0 && (
+                                <select 
+                                    onChange={handleAddExistingFolder}
+                                    className="border border-gray-300 bg-white text-xs w-24 rounded-sm focus:border-del-blue outline-none"
+                                >
+                                    <option value="">+ Add...</option>
+                                    {allFolders.map(f => (
+                                        <option key={f} value={f}>{f}</option>
+                                    ))}
+                                </select>
+                            )}
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-1">Type manual folders or select from list to append.</p>
                     </div>
                 </div>
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-2 pt-2 border-t border-gray-200 mt-2">
                     <button 
                         onClick={handleSaveMetaAction}
                         disabled={isSavingMeta}
@@ -181,17 +233,7 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
         ) : (
             /* READ ONLY META VIEW */
             <>
-                <div className="mb-6 group relative">
-                    <div className="absolute -right-2 top-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                        <button 
-                            onClick={() => setIsEditingMeta(true)}
-                            className="text-del-blue bg-blue-50 hover:bg-blue-100 p-2 rounded-sm flex items-center gap-1 text-xs font-bold"
-                        >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                            Edit
-                        </button>
-                    </div>
-
+                <div className="mb-6">
                     <h1 className="text-2xl font-bold text-black mb-1 leading-tight pr-12">
                         <a href={bookmark.url} target="_blank" rel="noopener noreferrer" className="hover:underline text-del-blue">
                             {bookmark.title}
