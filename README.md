@@ -4,6 +4,9 @@
 
 Built with **React 19**, **Vite**, and **Supabase**. Designed for speed, privacy, and simplicity.
 
+![Screenshot](./Screenshot1.png)
+
+
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![React](https://img.shields.io/badge/react-v19-blue)
 ![Supabase](https://img.shields.io/badge/backend-supabase-green)
@@ -17,24 +20,6 @@ Built with **React 19**, **Vite**, and **Supabase**. Designed for speed, privacy
 *   **Personal Notes:** Add markdown notes to any bookmark.
 *   **Full Search:** Instantly filter by tag, URL, title, or description.
 *   **Import/Export:** Full data ownership with SQL, CSV, and XML export options.
-
-## 🔗 How to Save Links (The "Share Target" Feature)
-
-*Okay, here is the honest truth:* Since this is a self-hosted private tool, there is no magic "Install" button in the App Store that automatically sets up sharing. You have to wire it up yourself.
-
-### 🖥️ Desktop (Chrome/Edge/Brave)
-This project includes a **local browser extension** (in the `public/extension` folder) that lets you save links with one click.
-1.  Go to `chrome://extensions`.
-2.  Enable **Developer Mode** (toggle in top right).
-3.  Click **Load Unpacked**.
-4.  Select the `public/extension` folder inside this project directory.
-5.  Click the new icon in your toolbar and enter your App URL (e.g., `https://my-linkkiste.vercel.app`).
-
-### 📱 Mobile (Android/iOS)
-There is currently no native "Share to LinkKiste" system menu integration out of the box (requires complex PWA manifest configuration).
-1.  Open your deployed app in your mobile browser.
-2.  **Add to Home Screen** to install it as a PWA.
-3.  To save a link, copy the URL, open LinkKiste, and tap **+ Add**.
 
 ---
 
@@ -129,13 +114,39 @@ You can deploy this for free on Vercel, Netlify, or Cloudflare Pages.
     *   `VITE_SUPABASE_ANON_KEY`
 4.  Deploy!
 
+> **⚠️ Important:** If the first deployment fails because you forgot the variables, simply adding them isn't enough. You must go to the **Deployments** tab, click the three dots on the failed deployment, and select **Redeploy**.
+
 ### Option B: Cloudflare Pages
 
-1.  Connect your GitHub repo to Cloudflare Pages.
-2.  **Build Command:** `npm run build`
-3.  **Output Directory:** `dist`
-4.  **Environment Variables:** Add your `VITE_...` keys here.
-5.  **Important:** If the app shows a connection error after deployment, go to **Deployments** -> **Retry deployment** to ensure the variables are baked into the build.
+1.  Log in to Cloudflare and go to **Compute (Workers & Pages)** -> **Pages**.
+2.  Click **Connect to Git** and select your repository.
+3.  **Build Settings:**
+    *   **Framework Preset:** Vite
+    *   **Build Command:** `npm run build`
+    *   **Output Directory:** `dist`
+4.  **Environment Variables:** Add your `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` here.
+
+> **⚠️ Critical:** Vite "bakes" environment variables into the code at build time. If you add the variables *after* the initial build runs (or if the first build fails), you **must** go to **Deployments** -> **Retry deployment** to rebuild the app with the keys included.
+
+---
+
+## 🔗 How to Save Links (The "Share Target" Feature)
+
+*Okay, here is the honest truth:* Since this is a self-hosted private tool, there is no magic "Install" button in the App Store that automatically sets up sharing. You have to wire it up yourself.
+
+### 🖥️ Desktop (Chrome/Edge/Brave)
+This project includes a **local browser extension** (in the `public/extension` folder) that lets you save links with one click.
+1.  Go to `chrome://extensions`.
+2.  Enable **Developer Mode** (toggle in top right).
+3.  Click **Load Unpacked**.
+4.  Select the `public/extension` folder inside this project directory.
+5.  Click the new icon in your toolbar and enter your App URL (e.g., `https://my-linkkiste.vercel.app`).
+
+### 📱 Mobile (Android/iOS)
+There is currently no native "Share to LinkKiste" system menu integration out of the box (requires complex PWA manifest configuration).
+1.  Open your deployed app in your mobile browser.
+2.  **Add to Home Screen** to install it as a PWA.
+3.  To save a link, copy the URL, open LinkKiste, and tap **+ Add**.
 
 ---
 
@@ -152,6 +163,12 @@ This tool is designed to be **single-user** (or limited user).
 ---
 
 ## 🤝 Contributing
+
+Feel free to open issues or submit PRs. This is a passion project to keep the spirit of the old web alive.
+
+## 📄 License
+
+MIT
 
 Feel free to open issues or submit PRs. This is a passion project to keep the spirit of the old web alive.
 
