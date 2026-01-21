@@ -253,19 +253,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
 
                              {/* Folders & Archive Badge */}
                              <div className="flex flex-wrap gap-1 mr-2 items-center">
-                                {/* Archived Badge - styled like folders */}
-                                {bm.archive_url && (
-                                     <a 
-                                        href={bm.archive_url}
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="group/archive flex items-center gap-0 bg-gray-50 border border-transparent hover:border-gray-200 rounded px-1 transition-colors text-[10px] text-gray-500 hover:text-del-blue py-0.5"
-                                        title="View archived version"
-                                     >
-                                         archived
-                                     </a>
-                                )}
-
+                                
                                 {bm.folders && bm.folders.map(folder => (
                                     <div key={folder} className="group/folder flex items-center gap-0 bg-gray-50 border border-transparent hover:border-gray-200 rounded px-1 transition-colors">
                                             <button
@@ -301,6 +289,19 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                     </form>
                                 ) : (
                                     null
+                                )}
+
+                                {/* Archived Badge - Pale Green, placed before Date/Notes */}
+                                {bm.archive_url && (
+                                     <a 
+                                        href={bm.archive_url}
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="group/archive flex items-center gap-0 bg-green-50 border border-green-200 hover:bg-green-100 rounded px-1.5 transition-colors text-[10px] text-green-700 hover:text-green-900 py-0.5 font-bold uppercase tracking-wide ml-1"
+                                        title="View archived version"
+                                     >
+                                         archived
+                                     </a>
                                 )}
                             </div>
 

@@ -155,6 +155,15 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
   // Derived chips for tags
   const tagChips = tagsStr.split(',').map(t => t.trim()).filter(t => t.length > 0);
 
+  // Helper to extract domain from archive url
+  const getArchiveDomain = (urlStr: string) => {
+      try {
+          return new URL(urlStr).hostname.replace('www.', '');
+      } catch (e) {
+          return 'external';
+      }
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Navigation */}
@@ -425,8 +434,31 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
             )}
         </div>
 
+        {/* Dedicated Archive Box Row */}
+        {bookmark.archive_url && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-sm flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                     <div className="bg-green-600 text-white p-1 rounded-sm">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                     </div>
+                     <div>
+                         <h4 className="text-xs font-bold uppercase text-green-800">Archived Version</h4>
+                         <p className="text-[11px] text-green-700">via {getArchiveDomain(bookmark.archive_url)}</p>
+                     </div>
+                </div>
+                <a 
+                    href={bookmark.archive_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="bg-white border border-green-300 text-green-700 hover:bg-green-600 hover:text-white hover:border-green-600 px-3 py-1.5 rounded-sm text-xs font-bold uppercase transition-colors shadow-sm"
+                >
+                    Open Snapshot
+                </a>
+            </div>
+        )}
+
         {/* Footer Actions */}
-        <div className="flex gap-4 pt-4 border-t border-gray-100 mt-8 justify-between items-center">
+        <div className="flex gap-4 pt-4 border-t border-gray-100 mt-2 justify-between items-center">
             <div className="flex gap-4 items-center">
                 <button 
                     onClick={() => onToggleRead(bookmark.id, bookmark.to_read)}
@@ -435,16 +467,8 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
                     {bookmark.to_read ? '✓ Mark as Read' : '○ Save for later'}
                 </button>
                 
-                {bookmark.archive_url ? (
-                     <a 
-                        href={bookmark.archive_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-white bg-black hover:bg-gray-800 px-2 py-1 rounded-sm text-xs font-bold uppercase tracking-wide flex items-center gap-1"
-                     >
-                        <span>🏛️</span> Archived
-                     </a>
-                ) : (
+                {/* Show "Archive Page" button only if NOT archived yet */}
+                {!bookmark.archive_url && (
                     <button 
                         onClick={() => onArchive(bookmark.id, bookmark.url)}
                         className="text-xs font-bold text-gray-500 hover:text-del-blue uppercase"
