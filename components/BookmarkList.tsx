@@ -236,7 +236,11 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                         )}
 
                         <div className="flex flex-wrap items-center gap-y-2 gap-x-2 text-xs">
-                            {/* Tags in Grey Boxes */}
+                            
+                            {/* 1. Date (Now First) */}
+                            <span className="text-[#999] text-[11px] whitespace-nowrap mr-2">on {dateStr}</span>
+
+                            {/* 2. Tags */}
                             {bm.tags && bm.tags.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mr-2">
                                     {bm.tags.map(tag => (
@@ -251,9 +255,8 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                 </div>
                             )}
 
-                             {/* Folders & Archive Badge */}
+                             {/* 3. Folders */}
                              <div className="flex flex-wrap gap-1 mr-2 items-center">
-                                
                                 {bm.folders && bm.folders.map(folder => (
                                     <div key={folder} className="group/folder flex items-center gap-0 bg-gray-50 border border-transparent hover:border-gray-200 rounded px-1 transition-colors">
                                             <button
@@ -290,22 +293,22 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                 ) : (
                                     null
                                 )}
-
-                                {/* Archived Badge - Pale Green, placed before Date/Notes */}
-                                {bm.archive_url && (
-                                     <a 
-                                        href={bm.archive_url}
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="group/archive flex items-center gap-0 bg-green-50 border border-green-200 hover:bg-green-100 rounded px-1.5 transition-colors text-[10px] text-green-700 hover:text-green-900 py-0.5 font-bold uppercase tracking-wide ml-1"
-                                        title="View archived version"
-                                     >
-                                         archived
-                                     </a>
-                                )}
                             </div>
+                            
+                            {/* 4. Archived Badge (Subtle style like Notes) */}
+                            {bm.archive_url && (
+                                 <a 
+                                    href={bm.archive_url}
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-[10px] text-green-600 bg-green-50 px-1 border border-green-100 rounded-sm mr-2 hover:underline decoration-green-300 flex items-center gap-1"
+                                    title="View archived version"
+                                 >
+                                     <span>🏛️</span> archived
+                                 </a>
+                            )}
 
-                            <span className="text-[#999] text-[11px] mr-2 whitespace-nowrap">on {dateStr}</span>
+                            {/* 5. Notes Badge */}
                             {hasNotes && <span className="text-[10px] text-gray-400 bg-yellow-50 px-1 border border-yellow-100 rounded-sm">📝 has notes</span>}
                             
                             {/* Actions - ALWAYS VISIBLE ON MOBILE, HOVER ON DESKTOP */}
