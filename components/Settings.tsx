@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
+import { Bookmark } from '../types';
 
 interface SettingsProps {
   session: Session;
@@ -17,6 +18,10 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
   
   // Custom Archive Domain
   const [archiveDomain, setArchiveDomain] = useState('https://archive.is');
+
+  // Duplicates Logic
+  const [checkingDupes, setCheckingDupes] = useState(false);
+  const [duplicates, setDuplicates] = useState<Record<string, Bookmark[]> | null>(null);
 
   // Extract project ID for display
   const projectUrl = (supabase as any).supabaseUrl || 'Unknown';
@@ -68,6 +73,93 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
       setArchiveDomain(domain);
       setMessage({ text: `Archive service updated to ${domain}`, type: 'success' });
       setTimeout(() => setMessage(null), 3000);
+  };
+
+  const checkForDuplicates = async () => {
+      setCheckingDupes(true);
+      setDuplicates(null);
+
+      try {
+          const { data, error } = await supabase
+            .from('bookmarks')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (error) throw error;
+          if (!data) return;
+
+          const groups: Record<string, Bookmark[]> = {};
+          
+          // Normalize function similar to AddBookmark
+          const normalize = (u: string) => {
+              try {
+                  return u.trim().toLowerCase()
+                      .replace(/^(https?:\/\/)?(www\.)?/, '')
+                      .replace(/\/$/, '');
+              } catch(e) { return u; }
+          };
+
+          data.forEach((b: Bookmark) => {
+              const key = normalize(b.url);
+              if (!groups[key]) {
+                  groups[key] = [];
+              }
+              groups[key].push(b);
+          });
+
+          // Filter only those with more than 1 entry
+          const dupeGroups: Record<string, Bookmark[]> = {};
+          let foundCount = 0;
+          Object.entries(groups).forEach(([key, list]) => {
+              if (list.length > 1) {
+                  dupeGroups[key] = list;
+                  foundCount++;
+              }
+          });
+
+          if (foundCount === 0) {
+              setMessage({ text: 'Great! No duplicates found in your collection.', type: 'success' });
+              setTimeout(() => setMessage(null), 4000);
+          } else {
+              setDuplicates(dupeGroups);
+          }
+
+      } catch (err: any) {
+          setMessage({ text: err.message, type: 'error' });
+      } finally {
+          setCheckingDupes(false);
+      }
+  };
+
+  const deleteDuplicate = async (id: number, urlKey: string) => {
+      if (!window.confirm('Delete this version of the bookmark?')) return;
+
+      try {
+          const { error } = await supabase.from('bookmarks').delete().eq('id', id);
+          if (error) throw error;
+
+          // Update local state
+          if (duplicates && duplicates[urlKey]) {
+              const updatedList = duplicates[urlKey].filter(b => b.id !== id);
+              
+              if (updatedList.length <= 1) {
+                  // If only 1 left, it's no longer a duplicate group
+                  const newDupes = { ...duplicates };
+                  delete newDupes[urlKey];
+                  setDuplicates(Object.keys(newDupes).length > 0 ? newDupes : null);
+                  if(Object.keys(newDupes).length === 0) {
+                      setMessage({ text: 'All duplicates resolved!', type: 'success' });
+                  }
+              } else {
+                  setDuplicates({
+                      ...duplicates,
+                      [urlKey]: updatedList
+                  });
+              }
+          }
+      } catch (err: any) {
+          alert('Error deleting: ' + err.message);
+      }
   };
 
   const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -203,7 +295,7 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
             const headers = ['Title', 'URL', 'Tags', 'Folders', 'Description', 'To Read', 'Created At', 'Archive URL'];
             content = headers.join(',') + '\n';
             
-            content += bookmarks.map(b => {
+            content += bookmarks.map((b: any) => {
                 const escapeCsv = (field: any) => {
                     const str = String(field || '').replace(/"/g, '""');
                     return `"${str}"`;
@@ -224,7 +316,7 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
             mimeType = 'application/xml';
             extension = 'xml';
             content = '<?xml version="1.0" encoding="UTF-8"?>\n<bookmarks>\n';
-            content += bookmarks.map(b => 
+            content += bookmarks.map((b: any) => 
 `  <bookmark>
     <title>${escapeXml(b.title)}</title>
     <url>${escapeXml(b.url)}</url>
@@ -241,7 +333,7 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
             mimeType = 'text/plain';
             extension = 'sql';
             content = '-- LINKkiste Backup\n-- Generated ' + new Date().toISOString() + '\n\n';
-            content += bookmarks.map(b => {
+            content += bookmarks.map((b: any) => {
                 const safeStr = (s: string | null) => s ? `'${s.replace(/'/g, "''")}'` : 'NULL';
                 const tagsStr = b.tags ? `'{${b.tags.map((t:string) => `"${t.replace(/"/g, '\\"')}"`).join(',')}}'` : "'{}'";
                 const foldersStr = b.folders ? `'{${b.folders.map((t:string) => `"${t.replace(/"/g, '\\"')}"`).join(',')}}'` : "'{}'";
@@ -327,6 +419,59 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
                 Used when creating new snapshots. Examples: <code>https://archive.is</code>, <code>https://archive.ph</code>, <code>https://archive.today</code>.
             </p>
         </div>
+      </div>
+
+      {/* Maintenance / Duplicates */}
+      <div className="mb-8 p-4 bg-white border border-gray-200 shadow-sm">
+          <h4 className="font-bold text-sm flex items-center gap-2 mb-3">
+            <span>🧹 Maintenance</span>
+          </h4>
+          
+          <div className="flex items-center gap-4">
+              <button 
+                onClick={checkForDuplicates}
+                disabled={checkingDupes}
+                className="bg-gray-100 hover:bg-gray-200 text-black border border-gray-300 text-xs font-bold px-4 py-2 rounded-sm disabled:opacity-50"
+              >
+                  {checkingDupes ? 'Scanning...' : 'Check for Duplicates'}
+              </button>
+              <span className="text-xs text-gray-500">Scan your library for identical URLs.</span>
+          </div>
+
+          {/* DUPLICATES RESULT BOX */}
+          {duplicates && (
+              <div className="mt-4 p-4 bg-[#f0fdf4] border border-green-200 rounded-sm">
+                  <h5 className="text-del-blue font-bold text-xs uppercase mb-3 border-b border-green-200 pb-2">
+                      Found {Object.keys(duplicates).length} Duplicate Groups
+                  </h5>
+                  
+                  <div className="space-y-6">
+                      {Object.entries(duplicates).map(([key, list]) => (
+                          <div key={key} className="text-xs">
+                              <p className="font-bold text-gray-700 mb-1 break-all bg-white/50 p-1 rounded-sm">{key}</p>
+                              <ul className="space-y-1 pl-1">
+                                  {list.map(bm => (
+                                      <li key={bm.id} className="flex items-center justify-between border-b border-green-100 last:border-0 py-1">
+                                          <div>
+                                            <span className="font-bold text-gray-800">{bm.title}</span>
+                                            <span className="text-gray-400 mx-1">-</span>
+                                            <span className="text-gray-500">{new Date(bm.created_at).toLocaleDateString()}</span>
+                                            {bm.tags && bm.tags.length > 0 && <span className="ml-2 text-[10px] text-gray-400">[{bm.tags.join(', ')}]</span>}
+                                          </div>
+                                          <button 
+                                            onClick={() => deleteDuplicate(bm.id, key)}
+                                            className="text-red-500 hover:text-red-700 hover:underline font-bold px-2 uppercase text-[10px]"
+                                          >
+                                              Delete
+                                          </button>
+                                      </li>
+                                  ))}
+                              </ul>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+          )}
       </div>
 
       {/* Export Section */}
