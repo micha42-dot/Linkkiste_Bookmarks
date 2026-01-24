@@ -118,6 +118,11 @@ const App: React.FC = () => {
     return Array.from(folders).sort();
   }, [bookmarks]);
 
+  // Compute all existing URLs for duplicate check
+  const existingUrls = useMemo(() => {
+      return bookmarks.map(b => b.url);
+  }, [bookmarks]);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setBookmarks([]); // Clear data on logout
@@ -425,7 +430,8 @@ const App: React.FC = () => {
                   onCancel={() => window.close()}
                   initialUrl={initialBookmarkData?.url}
                   initialTitle={initialBookmarkData?.title}
-                  allFolders={allFolders} // Added folders to popup
+                  allFolders={allFolders} 
+                  existingUrls={existingUrls} // Pass existing URLs for duplicate check
                   isPopup={true}
                 />
           </div>
@@ -507,7 +513,8 @@ const App: React.FC = () => {
           }}
           initialUrl={initialBookmarkData?.url}
           initialTitle={initialBookmarkData?.title}
-          allFolders={allFolders} // Added folders to standard add
+          allFolders={allFolders}
+          existingUrls={existingUrls} // Pass existing URLs for duplicate check
         />
       )}
 
