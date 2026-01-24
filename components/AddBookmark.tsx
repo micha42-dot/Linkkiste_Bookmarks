@@ -7,6 +7,7 @@ interface AddBookmarkProps {
   initialUrl?: string;
   initialTitle?: string;
   allFolders?: string[];
+  existingUrls?: string[]; // List of existing URLs to check against
   isPopup?: boolean;
 }
 
@@ -16,6 +17,7 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
     initialUrl, 
     initialTitle,
     allFolders = [], 
+    existingUrls = [],
     isPopup = false 
 }) => {
   const [url, setUrl] = useState(initialUrl || '');
@@ -25,6 +27,7 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
   const [toRead, setToRead] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchingMeta, setFetchingMeta] = useState(false);
+  const [isDuplicate, setIsDuplicate] = useState(false);
   
   // Folder Management
   const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
@@ -35,6 +38,28 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
     if (initialUrl && !url) setUrl(initialUrl);
     if (initialTitle && (!title || title === url)) setTitle(initialTitle);
   }, [initialUrl, initialTitle]);
+
+  // Duplicate Check Logic
+  useEffect(() => {
+      if (!url || !existingUrls || existingUrls.length === 0) {
+          setIsDuplicate(false);
+          return;
+      }
+
+      // Normalize URL for comparison (strip protocol, www, trailing slash)
+      const normalize = (u: string) => {
+          try {
+              return u.trim().toLowerCase()
+                  .replace(/^(https?:\/\/)?(www\.)?/, '')
+                  .replace(/\/$/, '');
+          } catch(e) { return u; }
+      };
+
+      const currentNorm = normalize(url);
+      const found = existingUrls.some(ex => normalize(ex) === currentNorm);
+      
+      setIsDuplicate(found);
+  }, [url, existingUrls]);
 
   const handleAutoFill = async () => {
     if (!url) return;
@@ -140,6 +165,13 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
               {loading && <span className="text-xs text-gray-400 font-medium">Saving...</span>}
           </div>
       )}
+
+      {/* DUPLICATE WARNING */}
+      {isDuplicate && (
+          <div className="mb-4 p-3 bg-[#f0fdf4] text-del-blue border border-blue-200 text-xs font-bold rounded-sm text-center uppercase tracking-wide">
+              Bookmark already exists
+          </div>
+      )}
       
       <form onSubmit={handleSubmit} className="space-y-4">
         
@@ -150,7 +182,7 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
                 <input
                     type="url"
                     required
-                    className={`flex-grow border border-gray-300 p-2 focus:border-del-blue focus:ring-1 focus:ring-del-blue outline-none rounded-l-sm transition-all ${isPopup ? 'text-xs bg-gray-50 text-gray-500' : 'text-sm'}`}
+                    className={`flex-grow border border-gray-300 p-2 focus:border-del-blue focus:ring-1 focus:ring-del-blue outline-none rounded-l-sm transition-all ${isPopup ? 'text-xs bg-gray-50 text-gray-500' : 'text-sm'} ${isDuplicate ? 'border-blue-300 bg-blue-50' : ''}`}
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                     placeholder="https://"
@@ -284,7 +316,7 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
             disabled={loading}
             className={`bg-del-blue hover:bg-del-dark-blue text-white font-bold disabled:opacity-50 shadow-sm transition-colors ${isPopup ? 'w-full py-2.5 text-sm rounded-sm' : 'px-6 py-1.5 text-sm uppercase rounded-sm'}`}
           >
-            {loading ? 'Saving...' : 'Save Bookmark'}
+            {loading ? 'Saving...' : (isDuplicate ? 'SAVE ANYWAY' : 'Save Bookmark')}
           </button>
           
           {!isPopup && (
