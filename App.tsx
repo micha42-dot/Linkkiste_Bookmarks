@@ -97,7 +97,7 @@ const App: React.FC = () => {
         subscription.unsubscribe();
         window.removeEventListener('changeView', handleViewChange);
     };
-  }, []);
+  }, [isSupabaseConfigured]);
 
   // PWA/Mobile Lifecycle
   useEffect(() => {

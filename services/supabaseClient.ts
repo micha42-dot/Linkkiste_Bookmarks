@@ -16,12 +16,14 @@ let supabaseAnonKey = PLACEHOLDER_KEY;
 
 // Attempt to load from Environment Variables (Vite standard)
 if (import.meta && import.meta.env) {
-    // Debug Log to help verify Cloudflare Environment Variables
-    console.log('LINKkiste Init:', {
-        hasUrl: !!import.meta.env.VITE_SUPABASE_URL,
-        hasKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
-        mode: import.meta.env.MODE
-    });
+    // Debug Log to help verify Cloudflare Environment Variables (DEV only)
+    if (import.meta.env.DEV) {
+        console.log('LINKkiste Init:', {
+            hasUrl: !!import.meta.env.VITE_SUPABASE_URL,
+            hasKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
+            mode: import.meta.env.MODE
+        });
+    }
 
     if (import.meta.env.VITE_SUPABASE_URL) {
         supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -39,13 +41,16 @@ export const isSupabaseConfigured =
   supabaseAnonKey !== PLACEHOLDER_KEY;
 
 if (isSupabaseConfigured) {
-    try {
-        const projectId = supabaseUrl.split('//')[1].split('.')[0];
-        console.log(`LINKkiste: Connected to Project ${projectId}`);
-    } catch (e) {
-        console.log('LINKkiste: Connected to Supabase');
+    if (import.meta.env.DEV) {
+        try {
+            const projectId = supabaseUrl.split('//')[1].split('.')[0];
+            console.log(`LINKkiste: Connected to Project ${projectId}`);
+        } catch (e) {
+            console.log('LINKkiste: Connected to Supabase');
+        }
     }
 } else {
+    // Warn is acceptable even in prod if config is critically missing
     console.warn('LINKkiste: Missing Configuration. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
 }
 

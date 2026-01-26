@@ -224,7 +224,13 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                 {bm.title}
                             </a>
                             <span className="text-[10px] text-gray-400 uppercase ml-2 tracking-wide inline-block">
-                                {new URL(bm.url).hostname.replace('www.', '')}
+                                {(() => {
+                                    try {
+                                        return new URL(bm.url).hostname.replace('www.', '');
+                                    } catch {
+                                        return '';
+                                    }
+                                })()}
                             </span>
                         </div>
                         
