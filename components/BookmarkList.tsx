@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Bookmark, ViewMode } from '../types';
-import { formatDate } from '../utils/helpers';
+import { formatDate, parseDateSafe } from '../utils/helpers';
 
 interface BookmarkListProps {
   bookmarks: Bookmark[];
@@ -80,15 +80,12 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
 
   const maxTagCount = allTags.length > 0 ? allTags[0][1] : 1;
 
-  // "Heute vor einem Jahr" Logic - Safari Safe
+  // "Heute vor einem Jahr" Logic - Safari Safe via parseDateSafe
   const oneYearAgoToday = useMemo(() => {
     const now = new Date();
     return bookmarks.filter(b => {
-        if (!b.created_at) return false;
-        // Fix for Safari which dislikes ' ' in ISO strings
-        const safeDate = b.created_at.replace(' ', 'T');
-        const d = new Date(safeDate);
-        if (isNaN(d.getTime())) return false;
+        const d = parseDateSafe(b.created_at);
+        if (!d) return false;
         
         // Match day and month, but from any previous year
         return d.getDate() === now.getDate() && 

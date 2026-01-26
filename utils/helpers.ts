@@ -28,13 +28,21 @@ export const normalizeUrl = (u: string) => {
 };
 
 // HELPER: Safari-safe date parsing
-const parseDateSafe = (dateString: string): Date | null => {
+// Exported so it can be used in components for logic (like "One Year Ago")
+export const parseDateSafe = (dateString: string | null | undefined): Date | null => {
     if (!dateString) return null;
-    // Fix SQL timestamps for Safari: "2023-10-10 12:00:00" -> "2023-10-10T12:00:00"
-    const safeString = String(dateString).replace(' ', 'T');
-    const d = new Date(safeString);
-    if (isNaN(d.getTime())) return null;
-    return d;
+    try {
+        // Fix SQL timestamps for Safari: "2023-10-10 12:00:00" -> "2023-10-10T12:00:00"
+        // Use regex to replace spaces with T globally, just in case
+        const safeString = String(dateString).replace(/ /g, 'T');
+        const d = new Date(safeString);
+        
+        // Check if date is valid
+        if (isNaN(d.getTime())) return null;
+        return d;
+    } catch (e) {
+        return null;
+    }
 }
 
 // Consistent date formatting - SAFARI SAFE
