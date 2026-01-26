@@ -27,24 +27,36 @@ export const normalizeUrl = (u: string) => {
     } catch(e) { return u; }
 };
 
-// Consistent date formatting
+// Consistent date formatting - SAFARI SAFE
 export const formatDate = (dateString: string): string => {
     if (!dateString) return '';
-    const dateObj = new Date(dateString);
-    return dateObj.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
+    try {
+        const dateObj = new Date(dateString);
+        // Check for Invalid Date
+        if (isNaN(dateObj.getTime())) return ''; 
+        return dateObj.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch (e) {
+        return '';
+    }
 };
 
 export const formatDateTime = (dateString: string): string => {
     if (!dateString) return '';
-    const dateObj = new Date(dateString);
-    return dateObj.toLocaleDateString('de-DE', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric',
-        hour: '2-digit', 
-        minute: '2-digit'
-    });
+    try {
+        const dateObj = new Date(dateString);
+        // Check for Invalid Date
+        if (isNaN(dateObj.getTime())) return '';
+        return dateObj.toLocaleDateString('de-DE', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            hour: '2-digit', 
+            minute: '2-digit'
+        });
+    } catch (e) {
+        return '';
+    }
 };
 
 // Consistent tag parsing (string -> array)
