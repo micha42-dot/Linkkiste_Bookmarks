@@ -87,6 +87,8 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
 
           if (error) throw error;
           if (!data) return;
+          
+          const bookmarks = data as Bookmark[];
 
           const groups: Record<string, Bookmark[]> = {};
           
@@ -99,7 +101,7 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
               } catch(e) { return u; }
           };
 
-          data.forEach((b: Bookmark) => {
+          bookmarks.forEach((b: Bookmark) => {
               const key = normalize(b.url);
               if (!groups[key]) {
                   groups[key] = [];
@@ -259,12 +261,15 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
     setExporting(true);
     try {
         // Fetch ALL bookmarks for this user directly from DB
-        const { data: bookmarks, error } = await supabase
+        const { data, error } = await supabase
             .from('bookmarks')
             .select('*')
             .order('created_at', { ascending: false });
 
         if (error) throw error;
+
+        const bookmarks = data as Bookmark[];
+
         if (!bookmarks || bookmarks.length === 0) {
             alert('No bookmarks found to export.');
             return;

@@ -21,6 +21,7 @@ const App: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showSqlHelp, setShowSqlHelp] = useState(false);
   const [selectedBookmarkId, setSelectedBookmarkId] = useState<number | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Extension / Popup State
   const [isPopupMode, setIsPopupMode] = useState(false);
@@ -88,6 +89,10 @@ const App: React.FC = () => {
         setLoading(true);
     }
     
+    if (isBackgroundUpdate) {
+        setIsRefreshing(true);
+    }
+    
     let query = supabase
       .from('bookmarks')
       .select('*')
@@ -101,6 +106,7 @@ const App: React.FC = () => {
       setBookmarks(data as Bookmark[] || []);
     }
     setLoading(false);
+    setIsRefreshing(false);
   };
 
   // Only re-fetch if the USER changes (login/logout), not on every token refresh
@@ -110,6 +116,30 @@ const App: React.FC = () => {
       fetchBookmarks(hasData); // Pass true if we already have data (silent update)
     }
   }, [session?.user?.id]); 
+
+  // PWA/Mobile Lifecycle: Auto-refresh when app comes to foreground
+  useEffect(() => {
+      const handleVisibilityChange = () => {
+          if (document.visibilityState === 'visible' && session?.user) {
+              // App came to foreground
+              fetchBookmarks(true);
+          }
+      };
+
+      const handleWindowFocus = () => {
+          if (session?.user) {
+              fetchBookmarks(true);
+          }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      window.addEventListener('focus', handleWindowFocus);
+
+      return () => {
+          document.removeEventListener('visibilitychange', handleVisibilityChange);
+          window.removeEventListener('focus', handleWindowFocus);
+      };
+  }, [session]);
 
   // Compute all unique folders for the dropdown in Edit View
   const allFolders = useMemo(() => {
@@ -478,6 +508,8 @@ const App: React.FC = () => {
             viewMode={view}
             userEmail={session.user.email}
             onAddClick={() => setView('add')}
+            onRefresh={() => fetchBookmarks(true)}
+            isRefreshing={isRefreshing}
           />
           <div className="mt-12 text-center">
               <button 

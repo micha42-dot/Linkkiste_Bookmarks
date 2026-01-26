@@ -18,6 +18,8 @@ interface BookmarkListProps {
   viewMode: ViewMode;
   userEmail?: string;
   onAddClick: () => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 export const BookmarkList: React.FC<BookmarkListProps> = ({ 
@@ -36,7 +38,9 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
   loading,
   viewMode,
   userEmail,
-  onAddClick
+  onAddClick,
+  onRefresh,
+  isRefreshing = false
 }) => {
   const [addingFolderToId, setAddingFolderToId] = useState<number | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
@@ -380,6 +384,17 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                         + Add a new bookmark
                     </button>
                 </li>
+                {onRefresh && (
+                    <li>
+                        <button 
+                            onClick={onRefresh} 
+                            disabled={isRefreshing}
+                            className={`block w-full text-left px-1 py-1 hover:underline hover:bg-blue-50 transition-colors ${isRefreshing ? 'text-gray-400 cursor-not-allowed' : 'text-del-blue'}`}
+                        >
+                            {isRefreshing ? '↻ Syncing...' : '↻ Sync now'}
+                        </button>
+                    </li>
+                )}
                 <li>
                     <button 
                         onClick={() => { setFilterTag(null); setFilterFolder(null); window.dispatchEvent(new CustomEvent('changeView', {detail: 'unread'})) }} 
