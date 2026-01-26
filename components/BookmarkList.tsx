@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Bookmark, ViewMode } from '../types';
+import { formatDate } from '../utils/helpers';
 
 interface BookmarkListProps {
   bookmarks: Bookmark[];
@@ -147,8 +148,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
 
   return (
     <div className="flex flex-col md:flex-row gap-12">
-      
-      <div className="flex-1 min-w-0"> {/* min-w-0 fixes text-overflow in flex children */}
+      <div className="flex-1 min-w-0">
         {filterTag && (
           <div className="mb-6 bg-[#f9f9f9] border border-[#ddd] p-3 flex items-center justify-between text-sm shadow-sm">
             <span>Bookmarks tagged with <span className="font-bold text-black px-1.5 py-0.5 bg-[#eee] rounded-sm">"{filterTag}"</span></span>
@@ -160,22 +160,12 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
           <div className="mb-6 bg-[#f9f9f9] border border-[#ddd] p-3 flex flex-col sm:flex-row sm:items-center justify-between text-sm shadow-sm gap-2">
             <div className="flex items-center gap-2">
                 <span className="text-gray-600">Bookmarks in folder</span>
-                <span className="font-bold text-white px-2 py-0.5 bg-del-blue rounded-sm flex items-center gap-1">
-                    📁 {filterFolder}
-                </span>
+                <span className="font-bold text-white px-2 py-0.5 bg-del-blue rounded-sm flex items-center gap-1">📁 {filterFolder}</span>
             </div>
             <div className="flex items-center gap-3 self-end sm:self-auto">
-                 <button 
-                    onClick={() => onDeleteFolder(filterFolder)} 
-                    className="text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-bold uppercase transition-colors"
-                    title="Delete this folder completely from all bookmarks"
-                 >
-                    Delete Folder
-                </button>
+                 <button onClick={() => onDeleteFolder(filterFolder)} className="text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-bold uppercase transition-colors" title="Delete this folder completely from all bookmarks">Delete Folder</button>
                 <span className="text-gray-300 hidden sm:inline">|</span>
-                <button onClick={() => setFilterFolder(null)} className="text-del-blue font-bold text-xs uppercase hover:underline">
-                    close view
-                </button>
+                <button onClick={() => setFilterFolder(null)} className="text-del-blue font-bold text-xs uppercase hover:underline">close view</button>
             </div>
           </div>
         )}
@@ -187,14 +177,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 {allTags.map(([tag, count]) => {
                     const size = 12 + (count / maxTagCount) * 18;
                     return (
-                        <button 
-                            key={tag}
-                            onClick={() => setFilterTag(tag)}
-                            className="tag-cloud-item text-del-blue transition-colors"
-                            style={{ fontSize: `${size}px` }}
-                        >
-                            {tag}
-                        </button>
+                        <button key={tag} onClick={() => setFilterTag(tag)} className="tag-cloud-item text-del-blue transition-colors" style={{ fontSize: `${size}px` }}>{tag}</button>
                     );
                 })}
                 </div>
@@ -206,21 +189,14 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 {allFolders.length === 0 && <div className="text-gray-400 italic">No folders created yet. Add a bookmark and define a folder name.</div>}
                 {allFolders.map(([folder, count]) => (
                     <div key={folder} className="group relative">
-                        <button 
-                            onClick={() => setFilterFolder(folder)}
-                            className="w-full flex items-center justify-between p-4 bg-gray-50 border border-gray-200 hover:border-del-blue hover:bg-white transition-all text-left"
-                        >
+                        <button onClick={() => setFilterFolder(folder)} className="w-full flex items-center justify-between p-4 bg-gray-50 border border-gray-200 hover:border-del-blue hover:bg-white transition-all text-left">
                             <div className="flex items-center gap-3">
                                 <span className="text-2xl opacity-50 group-hover:opacity-100">📁</span>
                                 <span className="font-bold text-gray-700 group-hover:text-del-blue">{folder}</span>
                             </div>
                             <span className="bg-white border border-gray-200 text-xs px-2 py-0.5 rounded text-gray-400 group-hover:text-del-blue group-hover:border-del-blue">{count}</span>
                         </button>
-                        <button 
-                             onClick={(e) => { e.stopPropagation(); onDeleteFolder(folder); }}
-                             className="absolute top-2 right-2 p-1 text-gray-300 hover:text-red-600 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                             title="Delete Folder"
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); onDeleteFolder(folder); }} className="absolute top-2 right-2 p-1 text-gray-300 hover:text-red-600 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity" title="Delete Folder">
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                         </button>
                     </div>
@@ -235,28 +211,16 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 </div>
             )}
             
-            {/* Render Items (Either Page Chunk OR Full List) */}
             {displayedItems.map(bm => {
-                const dateObj = new Date(bm.created_at);
-                const dateStr = dateObj.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
+                const dateStr = formatDate(bm.created_at);
                 const hasNotes = bm.notes && bm.notes.trim().length > 0;
                 
                 return (
                 <div key={bm.id} className="pb-4 border-b border-[#eeeeee] group flex gap-3">
-                    
-                    {/* Visual marker for unread */}
-                    {bm.to_read && (
-                        <div className="mt-2 w-1.5 h-1.5 bg-del-blue rounded-full flex-shrink-0" title="To Read"></div>
-                    )}
-
+                    {bm.to_read && <div className="mt-2 w-1.5 h-1.5 bg-del-blue rounded-full flex-shrink-0" title="To Read"></div>}
                     <div className="flex-grow min-w-0">
                         <div className="mb-1 leading-tight">
-                            <a 
-                                href={bm.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="text-[16px] font-bold text-del-blue hover:bg-blue-50 hover:underline px-0.5 -ml-0.5 break-words"
-                            >
+                            <a href={bm.url} target="_blank" rel="noopener noreferrer" className="text-[16px] font-bold text-del-blue hover:bg-blue-50 hover:underline px-0.5 -ml-0.5 break-words">
                                 {bm.title}
                             </a>
                             <span className="text-[10px] text-gray-400 uppercase ml-2 tracking-wide inline-block">
@@ -271,127 +235,60 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                         )}
 
                         <div className="flex flex-wrap items-center gap-y-2 gap-x-2 text-xs">
-                            
-                            {/* 1. Date (Now First) */}
                             <span className="text-[#999] text-[11px] whitespace-nowrap mr-2">on {dateStr}</span>
 
-                            {/* 2. Tags */}
                             {bm.tags && bm.tags.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mr-2">
                                     {bm.tags.map(tag => (
-                                        <button
-                                            key={tag}
-                                            onClick={() => setFilterTag(tag)}
-                                            className={`text-[10px] px-1.5 py-0.5 bg-[#f0f0f0] text-[#666] hover:bg-[#ddd] hover:text-black rounded-sm ${filterTag === tag ? 'bg-yellow-200 text-black' : ''}`}
-                                        >
+                                        <button key={tag} onClick={() => setFilterTag(tag)} className={`text-[10px] px-1.5 py-0.5 bg-[#f0f0f0] text-[#666] hover:bg-[#ddd] hover:text-black rounded-sm ${filterTag === tag ? 'bg-yellow-200 text-black' : ''}`}>
                                             {tag}
                                         </button>
                                     ))}
                                 </div>
                             )}
 
-                             {/* 3. Folders */}
                              <div className="flex flex-wrap gap-1 mr-2 items-center">
                                 {bm.folders && bm.folders.map(folder => (
                                     <div key={folder} className="group/folder flex items-center gap-0 bg-gray-50 border border-transparent hover:border-gray-200 rounded px-1 transition-colors">
-                                            <button
-                                            onClick={() => setFilterFolder(folder)}
-                                            className="text-[10px] text-gray-500 hover:text-del-blue flex items-center gap-0.5 py-0.5"
-                                        >
-                                            <span className="opacity-50">📁</span> {folder}
-                                        </button>
-                                        <button 
-                                            onClick={() => handleRemoveFromFolder(bm.id, folder)}
-                                            className="ml-1 text-[9px] text-gray-300 hover:text-red-500 hover:font-bold opacity-50 group-hover/folder:opacity-100 transition-opacity px-0.5"
-                                            title={`Remove link from folder "${folder}"`}
-                                        >
-                                            x
-                                        </button>
+                                        <button onClick={() => setFilterFolder(folder)} className="text-[10px] text-gray-500 hover:text-del-blue flex items-center gap-0.5 py-0.5"><span className="opacity-50">📁</span> {folder}</button>
+                                        <button onClick={() => handleRemoveFromFolder(bm.id, folder)} className="ml-1 text-[9px] text-gray-300 hover:text-red-500 hover:font-bold opacity-50 group-hover/folder:opacity-100 transition-opacity px-0.5" title={`Remove link from folder "${folder}"`}>x</button>
                                     </div>
                                 ))}
                                 
-                                {/* Add Folder Form */}
-                                {addingFolderToId === bm.id ? (
+                                {addingFolderToId === bm.id && (
                                     <form onSubmit={submitAddFolder} className="flex items-center gap-1">
-                                        <input 
-                                            type="text" 
-                                            autoFocus
-                                            className="text-[10px] border border-del-blue px-1 py-0.5 w-20 outline-none"
-                                            placeholder="Folder name"
-                                            value={newFolderName}
-                                            onChange={(e) => setNewFolderName(e.target.value)}
-                                            onBlur={() => !newFolderName && setAddingFolderToId(null)}
-                                        />
+                                        <input type="text" autoFocus className="text-[10px] border border-del-blue px-1 py-0.5 w-20 outline-none" placeholder="Folder name" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} onBlur={() => !newFolderName && setAddingFolderToId(null)} />
                                         <button type="submit" className="text-[9px] bg-del-blue text-white px-1.5 py-0.5 rounded-sm">ok</button>
                                         <button type="button" onClick={() => setAddingFolderToId(null)} className="text-[9px] text-gray-400 px-1">x</button>
                                     </form>
-                                ) : (
-                                    null
                                 )}
                             </div>
                             
-                            {/* 4. Archived Badge (Subtle style like Notes) */}
                             {bm.archive_url && (
-                                 <a 
-                                    href={bm.archive_url}
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-[10px] text-green-600 bg-green-50 px-1 border border-green-100 rounded-sm mr-2 hover:underline decoration-green-300 flex items-center gap-1"
-                                    title="View archived version"
-                                 >
-                                     <span>🏛️</span> archived
-                                 </a>
+                                 <a href={bm.archive_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-green-600 bg-green-50 px-1 border border-green-100 rounded-sm mr-2 hover:underline decoration-green-300 flex items-center gap-1" title="View archived version"><span>🏛️</span> archived</a>
                             )}
-
-                            {/* 5. Notes Badge */}
                             {hasNotes && <span className="text-[10px] text-gray-400 bg-yellow-50 px-1 border border-yellow-100 rounded-sm">📝 has notes</span>}
                             
-                            {/* Actions - ALWAYS VISIBLE ON MOBILE, HOVER ON DESKTOP */}
                             <div className="flex flex-wrap items-center gap-3 md:gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity w-full md:w-auto mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0 border-gray-100">
-                                <button onClick={() => onToggleRead(bm.id, bm.to_read)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase">
-                                    {bm.to_read ? 'mark read' : 'save later'}
-                                </button>
-                                
+                                <button onClick={() => onToggleRead(bm.id, bm.to_read)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase">{bm.to_read ? 'mark read' : 'save later'}</button>
                                 <span className="text-gray-200 hidden md:inline">|</span>
-                                <button onClick={() => onViewDetail(bm.id)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase">
-                                    permalink
-                                </button>
-
-                                {/* Only show 'Archive Page' action if NOT archived yet, since the archived link is now a visible badge */}
+                                <button onClick={() => onViewDetail(bm.id)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase">permalink</button>
                                 {!bm.archive_url && (
                                     <>
                                         <span className="text-gray-200 hidden md:inline">|</span>
-                                        <button 
-                                            onClick={() => onArchive(bm.id, bm.url)} 
-                                            className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase"
-                                            title="Create snapshot on archive.is"
-                                        >
-                                            Archive Page
-                                        </button>
+                                        <button onClick={() => onArchive(bm.id, bm.url)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase" title="Create snapshot on archive.is">Archive Page</button>
                                     </>
                                 )}
-
                                 {filterFolder && bm.folders?.includes(filterFolder) && (
                                     <>
                                         <span className="text-gray-200 hidden md:inline">|</span>
-                                        <button 
-                                            onClick={() => handleRemoveFromFolder(bm.id, filterFolder)} 
-                                            className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase whitespace-nowrap"
-                                        >
-                                            remove from folder
-                                        </button>
+                                        <button onClick={() => handleRemoveFromFolder(bm.id, filterFolder)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase whitespace-nowrap">remove from folder</button>
                                     </>
                                 )}
-
                                 <span className="text-gray-200 hidden md:inline">|</span>
-                                <button onClick={() => handleStartAddFolder(bm.id)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase">
-                                    add to folder
-                                </button>
-
+                                <button onClick={() => handleStartAddFolder(bm.id)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase">add to folder</button>
                                 <span className="text-gray-200 hidden md:inline">|</span>
-                                <button onClick={() => handleDelete(bm.id, bm.title)} className="text-gray-400 hover:text-red-500 text-[10px] md:text-[9px] font-bold uppercase">
-                                    delete
-                                </button>
+                                <button onClick={() => handleDelete(bm.id, bm.title)} className="text-gray-400 hover:text-red-500 text-[10px] md:text-[9px] font-bold uppercase">delete</button>
                             </div>
                         </div>
                     </div>
@@ -399,160 +296,72 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 )
             })}
             
-            {/* PAGINATION CONTROLS (Only show if enabled AND we have pages) */}
             {usePagination && totalPages > 1 && (
                 <div className="mt-8 flex justify-center items-center gap-2 text-xs">
-                    <button 
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        className="px-3 py-1.5 border border-gray-200 bg-gray-50 rounded-sm hover:bg-white hover:text-del-blue disabled:opacity-40 disabled:hover:text-inherit"
-                    >
-                        &laquo; Prev
-                    </button>
-                    
-                    {/* Page Numbers */}
+                    <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1.5 border border-gray-200 bg-gray-50 rounded-sm hover:bg-white hover:text-del-blue disabled:opacity-40 disabled:hover:text-inherit">&laquo; Prev</button>
                     <div className="flex gap-1">
-                        {Array.from({ length: totalPages }, (_, i) => i + 1)
-                            .filter(p => p === 1 || p === totalPages || (p >= currentPage - 1 && p <= currentPage + 1))
-                            .map((page, index, array) => {
-                                // Add ellipsis logic
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => p === 1 || p === totalPages || (p >= currentPage - 1 && p <= currentPage + 1)).map((page, index, array) => {
                                 const prev = array[index - 1];
                                 const showEllipsis = prev && page - prev > 1;
-
                                 return (
                                     <React.Fragment key={page}>
                                         {showEllipsis && <span className="px-1 text-gray-400">...</span>}
-                                        <button 
-                                            onClick={() => handlePageChange(page)}
-                                            className={`px-3 py-1.5 rounded-sm font-bold ${
-                                                currentPage === page 
-                                                ? 'bg-del-blue text-white' 
-                                                : 'bg-white border border-gray-200 hover:text-del-blue'
-                                            }`}
-                                        >
-                                            {page}
-                                        </button>
+                                        <button onClick={() => handlePageChange(page)} className={`px-3 py-1.5 rounded-sm font-bold ${currentPage === page ? 'bg-del-blue text-white' : 'bg-white border border-gray-200 hover:text-del-blue'}`}>{page}</button>
                                     </React.Fragment>
                                 )
                             })}
                     </div>
-
-                    <button 
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                        className="px-3 py-1.5 border border-gray-200 bg-gray-50 rounded-sm hover:bg-white hover:text-del-blue disabled:opacity-40 disabled:hover:text-inherit"
-                    >
-                        Next &raquo;
-                    </button>
+                    <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-1.5 border border-gray-200 bg-gray-50 rounded-sm hover:bg-white hover:text-del-blue disabled:opacity-40 disabled:hover:text-inherit">Next &raquo;</button>
                 </div>
             )}
             </div>
         )}
-
       </div>
-
-      {/* Sidebar - Moves to bottom on mobile, side on desktop */}
       <div className="w-full md:w-56 flex-shrink-0 pl-0 md:pl-6 border-l-0 md:border-l border-gray-100 mt-8 md:mt-0">
-         
-         {/* Sidebar Box 1: Nav */}
          <div className="mb-8">
             <h4 className="font-bold text-xs text-white bg-[#86c944] mb-3 uppercase tracking-wide p-2 rounded-sm">Navigation</h4>
             <ul className="space-y-1 text-xs">
-                <li>
-                    <button onClick={onAddClick} className="text-del-blue hover:underline hover:bg-blue-50 block w-full text-left px-1 py-1">
-                        + Add a new bookmark
-                    </button>
-                </li>
-                <li>
-                    <button 
-                        onClick={() => { setFilterTag(null); setFilterFolder(null); window.dispatchEvent(new CustomEvent('changeView', {detail: 'unread'})) }} 
-                        className={`hover:underline block w-full text-left px-1 py-1 ${viewMode === 'unread' ? 'text-black font-bold' : 'text-del-blue'}`}
-                    >
-                        Unread items ({unreadCount})
-                    </button>
-                </li>
-                {/* MOVED SYNC BUTTON BELOW UNREAD ITEMS */}
-                {onRefresh && (
-                    <li>
-                        <button 
-                            onClick={onRefresh} 
-                            disabled={isRefreshing}
-                            className={`block w-full text-left px-1 py-1 hover:underline hover:bg-blue-50 transition-colors ${isRefreshing ? 'text-gray-400 cursor-not-allowed' : 'text-del-blue'}`}
-                        >
-                            {isRefreshing ? '↻ Syncing...' : '↻ Sync now'}
-                        </button>
-                    </li>
-                )}
+                <li><button onClick={onAddClick} className="text-del-blue hover:underline hover:bg-blue-50 block w-full text-left px-1 py-1">+ Add a new bookmark</button></li>
+                <li><button onClick={() => { setFilterTag(null); setFilterFolder(null); window.dispatchEvent(new CustomEvent('changeView', {detail: 'unread'})) }} className={`hover:underline block w-full text-left px-1 py-1 ${viewMode === 'unread' ? 'text-black font-bold' : 'text-del-blue'}`}>Unread items ({unreadCount})</button></li>
+                {onRefresh && (<li><button onClick={onRefresh} disabled={isRefreshing} className={`block w-full text-left px-1 py-1 hover:underline hover:bg-blue-50 transition-colors ${isRefreshing ? 'text-gray-400 cursor-not-allowed' : 'text-del-blue'}`}>{isRefreshing ? '↻ Syncing...' : '↻ Sync now'}</button></li>)}
             </ul>
          </div>
-        
-         {/* Folders List */}
          {allFolders.length > 0 && (
              <div className="mb-8">
                 <h4 className="font-bold text-xs text-white bg-[#86c944] mb-3 uppercase tracking-wide p-2 rounded-sm">Folders</h4>
                 <div className="flex flex-col">
                     {allFolders.map(([folder, count]) => (
                         <div key={folder} className="flex justify-between items-center group">
-                            <button 
-                                onClick={() => setFilterFolder(folder)}
-                                className={`flex-grow flex justify-between items-center text-xs px-1 py-1 rounded hover:bg-[#f0f0f0] ${filterFolder === folder ? 'font-bold bg-gray-100' : ''}`}
-                            >
-                                <span className="text-del-blue hover:underline text-left truncate w-32">{folder}</span>
-                                <span className="text-gray-400 text-[10px]">{count}</span>
-                            </button>
-                            <button 
-                                onClick={() => onDeleteFolder(folder)}
-                                className="ml-1 text-[10px] text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 p-1"
-                                title="Delete Folder"
-                            >
-                                x
-                            </button>
+                            <button onClick={() => setFilterFolder(folder)} className={`flex-grow flex justify-between items-center text-xs px-1 py-1 rounded hover:bg-[#f0f0f0] ${filterFolder === folder ? 'font-bold bg-gray-100' : ''}`}><span className="text-del-blue hover:underline text-left truncate w-32">{folder}</span><span className="text-gray-400 text-[10px]">{count}</span></button>
+                            <button onClick={() => onDeleteFolder(folder)} className="ml-1 text-[10px] text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 p-1" title="Delete Folder">x</button>
                         </div>
                     ))}
                 </div>
              </div>
          )}
-
-         {/* Flashback */}
          {oneYearAgoToday.length > 0 && (
             <div className="mb-8 p-3 bg-[#fff9c4] border border-[#fbc02d]">
-                <h4 className="font-bold text-xs text-[#f57f17] mb-2 uppercase tracking-wide">
-                    On this day
-                </h4>
+                <h4 className="font-bold text-xs text-[#f57f17] mb-2 uppercase tracking-wide">On this day</h4>
                 <ul className="space-y-2">
                     {oneYearAgoToday.map(bm => (
-                        <li key={bm.id} className="text-xs leading-tight">
-                            <a href={bm.url} target="_blank" className="text-del-blue font-bold hover:underline">
-                                {bm.title}
-                            </a>
-                        </li>
+                        <li key={bm.id} className="text-xs leading-tight"><a href={bm.url} target="_blank" className="text-del-blue font-bold hover:underline">{bm.title}</a></li>
                     ))}
                 </ul>
             </div>
          )}
-
-         {/* Top Tags */}
          <div>
             <h4 className="font-bold text-xs text-white bg-[#86c944] mb-3 uppercase tracking-wide p-2 rounded-sm">Popular Tags</h4>
             <div className="flex flex-col">
                 {topTags.map(([tag, count]) => (
                     <div key={tag} className="flex justify-between items-center text-xs px-1 py-0.5">
-                        <button 
-                            onClick={() => setFilterTag(tag)}
-                            className={`text-del-blue hover:underline hover:bg-blue-50 py-0.5 ${filterTag === tag ? 'font-bold text-black bg-yellow-100' : ''}`}
-                        >
-                            {tag}
-                        </button>
+                        <button onClick={() => setFilterTag(tag)} className={`text-del-blue hover:underline hover:bg-blue-50 py-0.5 ${filterTag === tag ? 'font-bold text-black bg-yellow-100' : ''}`}>{tag}</button>
                         <span className="text-gray-400 text-[10px]">{count}</span>
                     </div>
                 ))}
-                <button onClick={() => window.dispatchEvent(new CustomEvent('changeView', {detail: 'tags'}))} className="text-right text-[10px] text-gray-400 mt-2 hover:underline py-1">
-                    view all tags &raquo;
-                </button>
+                <button onClick={() => window.dispatchEvent(new CustomEvent('changeView', {detail: 'tags'}))} className="text-right text-[10px] text-gray-400 mt-2 hover:underline py-1">view all tags &raquo;</button>
             </div>
          </div>
       </div>
-
     </div>
   );
 };

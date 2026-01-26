@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from './services/supabaseClient';
 import { Auth } from './components/Auth';
 import { Layout } from './components/Layout';
@@ -8,35 +8,48 @@ import { AddBookmark } from './components/AddBookmark';
 import { Settings } from './components/Settings';
 import { SqlHelp } from './components/SqlHelp';
 import { About, Terms, Privacy } from './components/StaticPages';
-import { Bookmark, NewBookmark, ViewMode } from './types';
+import { NewBookmark, ViewMode } from './types';
 import { Session } from '@supabase/supabase-js';
+import { useBookmarks } from './hooks/useBookmarks';
+import { sanitizeUrl, sanitizeInput } from './utils/helpers';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [view, setView] = useState<ViewMode>('list');
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filterTag, setFilterTag] = useState<string | null>(null);
   const [filterFolder, setFilterFolder] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showSqlHelp, setShowSqlHelp] = useState(false);
   const [selectedBookmarkId, setSelectedBookmarkId] = useState<number | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // UI Preferences
   const [usePagination, setUsePagination] = useState(true);
-  // Trigger to reset pagination to page 1
   const [paginationResetTrigger, setPaginationResetTrigger] = useState(0);
 
   // Extension / Popup State
   const [isPopupMode, setIsPopupMode] = useState(false);
   const [initialBookmarkData, setInitialBookmarkData] = useState<{url: string, title: string} | null>(null);
 
+  // Custom Hook for Data Logic
+  const { 
+      bookmarks, 
+      loading, 
+      isRefreshing, 
+      fetchBookmarks, 
+      addBookmark, 
+      updateBookmark, 
+      deleteBookmark, 
+      toggleReadStatus, 
+      saveNotes,
+      addFolder,
+      removeFolder,
+      deleteEntireFolder,
+      allFolders,
+      existingUrls
+  } = useBookmarks(session);
+
   useEffect(() => {
-    if (!isSupabaseConfigured) {
-      setLoading(false);
-      return;
-    }
+    if (!isSupabaseConfigured) return;
 
     // Load Preferences
     const storedPagination = localStorage.getItem('linkkiste_use_pagination');
@@ -44,7 +57,7 @@ const App: React.FC = () => {
         setUsePagination(storedPagination === 'true');
     }
 
-    // 1. Check URL params (Extension support)
+    // 1. Check URL params (Extension support) & SANITIZE THEM
     const params = new URLSearchParams(window.location.search);
     const modeParam = params.get('mode');
     const urlParam = params.get('url');
@@ -52,37 +65,31 @@ const App: React.FC = () => {
 
     if (modeParam === 'popup') {
         setIsPopupMode(true);
-        document.body.classList.add('popup-mode'); // Helper for global CSS if needed
+        document.body.classList.add('popup-mode');
     }
 
     if (urlParam) {
+      // Security: Sanitize inputs to prevent XSS via URL
+      const cleanUrl = sanitizeUrl(urlParam);
+      const cleanTitle = sanitizeInput(titleParam || urlParam);
+
       setInitialBookmarkData({
-        url: urlParam,
-        title: titleParam || urlParam 
+        url: cleanUrl,
+        title: cleanTitle 
       });
-      // In popup mode, we force the 'add' view instantly
       setView('add');
       
-      // Clean URL only if NOT in popup mode (iframe needs the params to persist across re-renders if state updates)
       if (modeParam !== 'popup') {
           const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
           window.history.replaceState({path: newUrl}, '', newUrl);
       }
     }
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
+    // Auth Listeners
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    // Custom event listener for view changes from components
+    // Custom Event Listener
     const handleViewChange = (e: any) => setView(e.detail);
     window.addEventListener('changeView', handleViewChange);
 
@@ -92,56 +99,14 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const fetchBookmarks = async (isBackgroundUpdate = false) => {
-    if (!session || !isSupabaseConfigured) return;
-    
-    // Only show full loading spinner if we don't have data yet and it's not a background update
-    if (!isBackgroundUpdate && bookmarks.length === 0) {
-        setLoading(true);
-    }
-    
-    if (isBackgroundUpdate) {
-        setIsRefreshing(true);
-    }
-    
-    let query = supabase
-      .from('bookmarks')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('Error fetching bookmarks:', error);
-    } else {
-      setBookmarks(data as Bookmark[] || []);
-    }
-    setLoading(false);
-    setIsRefreshing(false);
-  };
-
-  // Only re-fetch if the USER changes (login/logout), not on every token refresh
-  useEffect(() => {
-    if (session?.user?.id) {
-      const hasData = bookmarks.length > 0;
-      fetchBookmarks(hasData); // Pass true if we already have data (silent update)
-    }
-  }, [session?.user?.id]); 
-
-  // PWA/Mobile Lifecycle: Auto-refresh when app comes to foreground
+  // PWA/Mobile Lifecycle
   useEffect(() => {
       const handleVisibilityChange = () => {
           if (document.visibilityState === 'visible' && session?.user) {
-              // App came to foreground
               fetchBookmarks(true);
           }
       };
-
-      const handleWindowFocus = () => {
-          if (session?.user) {
-              fetchBookmarks(true);
-          }
-      };
+      const handleWindowFocus = () => session?.user && fetchBookmarks(true);
 
       document.addEventListener('visibilitychange', handleVisibilityChange);
       window.addEventListener('focus', handleWindowFocus);
@@ -150,14 +115,13 @@ const App: React.FC = () => {
           document.removeEventListener('visibilitychange', handleVisibilityChange);
           window.removeEventListener('focus', handleWindowFocus);
       };
-  }, [session]);
+  }, [session, fetchBookmarks]);
 
   const handleSetPagination = (enabled: boolean) => {
       setUsePagination(enabled);
       localStorage.setItem('linkkiste_use_pagination', String(enabled));
   };
 
-  // Logic to handle clicking the Logo/Title: Reset view to List AND Page 1
   const handleLogoClick = () => {
       setView('list');
       setFilterTag(null);
@@ -167,102 +131,21 @@ const App: React.FC = () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Compute all unique folders for the dropdown in Edit View
-  const allFolders = useMemo(() => {
-    const folders = new Set<string>();
-    bookmarks.forEach(b => b.folders?.forEach(f => folders.add(f)));
-    return Array.from(folders).sort();
-  }, [bookmarks]);
-
-  // Compute all existing URLs for duplicate check
-  const existingUrls = useMemo(() => {
-      return bookmarks.map(b => b.url);
-  }, [bookmarks]);
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setBookmarks([]); // Clear data on logout
   };
 
-  const handleSaveBookmark = async (newBm: NewBookmark) => {
-    if (!session?.user) return;
-
-    const { error } = await supabase.from('bookmarks').insert([
-      {
-        url: newBm.url,
-        title: newBm.title,
-        description: newBm.description,
-        tags: newBm.tags,
-        folders: newBm.folders,
-        to_read: newBm.to_read,
-        user_id: session.user.id
-      }
-    ]);
-
-    if (error) {
-        alert(`Error saving bookmark: ${error.message}`);
-    } else {
-      if (isPopupMode) {
-          // In popup mode, show success state instead of list
-          setInitialBookmarkData(null); // Clear form data
-          setView('list'); // Re-use 'list' view state to trigger success UI in render below
-      } else {
-          await fetchBookmarks(true); // Silent update
-          setView('list');
-      }
-    }
-  };
-
-  const handleUpdateBookmark = async (id: number, updates: { title: string, url: string, description: string, tags: string[], folders: string[], archive_url?: string | null }) => {
-      // Optimistic update
-      setBookmarks(bookmarks.map(b => b.id === id ? { ...b, ...updates } : b));
-      
-      const { error } = await supabase.from('bookmarks').update(updates).eq('id', id);
-      if (error) {
-          alert('Error updating bookmark: ' + error.message);
-          fetchBookmarks(true); // Revert on error
-      }
-  };
-
-  const handleDeleteBookmark = async (id: number) => {
-    const { error } = await supabase.from('bookmarks').delete().eq('id', id);
-    if (error) {
-      alert('Error deleting: ' + error.message);
-    } else {
-      setBookmarks(bookmarks.filter(b => b.id !== id));
-      if (view === 'detail' && selectedBookmarkId === id) {
-          setView('list');
-          setSelectedBookmarkId(null);
-      }
-    }
-  };
-
-  const handleToggleRead = async (id: number, currentStatus: boolean) => {
-      // Optimistic update
-      setBookmarks(bookmarks.map(b => b.id === id ? { ...b, to_read: !currentStatus } : b));
-
-      const { error } = await supabase
-        .from('bookmarks')
-        .update({ to_read: !currentStatus })
-        .eq('id', id);
-      
-      if (error) {
-          alert('Error updating: ' + error.message);
-          fetchBookmarks(true); // Revert
-      } 
-  };
-
-  const handleSaveNotes = async (id: number, notes: string) => {
-      // Optimistic update local state
-      setBookmarks(bookmarks.map(b => b.id === id ? { ...b, notes: notes } : b));
-
-      const { error } = await supabase
-        .from('bookmarks')
-        .update({ notes: notes })
-        .eq('id', id);
-      
-      if (error) {
-          alert('Error saving notes: ' + error.message + '\n\nMake sure you have run the migration SQL from "Database Settings".');
+  const handleSaveWrapper = async (newBm: NewBookmark) => {
+      try {
+          await addBookmark(newBm);
+          if (isPopupMode) {
+            setInitialBookmarkData(null);
+            setView('list'); 
+          } else {
+            setView('list');
+          }
+      } catch(e: any) {
+          alert(`Error saving: ${e.message}`);
       }
   };
 
@@ -270,114 +153,25 @@ const App: React.FC = () => {
       const baseUrl = localStorage.getItem('linkkiste_archive_base') || 'https://archive.is';
       const archiveUrl = `${baseUrl}/newest/${url}`;
       
-      // 1. Optimistic update
-      setBookmarks(bookmarks.map(b => b.id === id ? { ...b, archive_url: archiveUrl } : b));
-
-      // 2. Open archive service submission in new tab
-      // Most archive sites (archive.is, archive.ph) support /?run=1&url=...
+      // Open service first
       window.open(`${baseUrl}/?run=1&url=${encodeURIComponent(url)}`, '_blank');
-
-      // 3. Update DB
-      const { error } = await supabase
-        .from('bookmarks')
-        .update({ archive_url: archiveUrl })
-        .eq('id', id);
       
-      if (error) {
-          alert('Error saving archive link: ' + error.message);
-      }
-  };
-
-  const handleAddFolderToBookmark = async (bookmarkId: number, folderName: string) => {
-      const bm = bookmarks.find(b => b.id === bookmarkId);
-      if (!bm) return;
-
-      // Clean folder name
-      const cleanFolder = folderName.trim();
-      if (!cleanFolder) return;
-
-      const currentFolders = bm.folders || [];
-      if (currentFolders.includes(cleanFolder)) return; // Already exists
-
-      const newFolders = [...currentFolders, cleanFolder];
-
-      // Optimistic update
-      setBookmarks(bookmarks.map(b => b.id === bookmarkId ? { ...b, folders: newFolders } : b));
-
-      const { error } = await supabase
-        .from('bookmarks')
-        .update({ folders: newFolders })
-        .eq('id', bookmarkId);
-
-      if (error) {
-          alert('Error adding folder: ' + error.message);
-          fetchBookmarks(true); // Revert
-      }
-  };
-
-  const handleRemoveFolderFromBookmark = async (bookmarkId: number, folderName: string) => {
-      const bm = bookmarks.find(b => b.id === bookmarkId);
-      if (!bm) return;
-
-      const newFolders = bm.folders?.filter(f => f !== folderName) || [];
-      
-      // Optimistic update
-      setBookmarks(bookmarks.map(b => b.id === bookmarkId ? { ...b, folders: newFolders } : b));
-
-      const { error } = await supabase
-        .from('bookmarks')
-        .update({ folders: newFolders })
-        .eq('id', bookmarkId);
-
-      if (error) {
-          alert('Error updating bookmark: ' + error.message);
-          fetchBookmarks(true); // Revert on error
-      }
-  };
-
-  const handleDeleteEntireFolder = async (folderName: string) => {
-      if (!window.confirm(`Are you sure you want to delete the folder "${folderName}"? This will remove it from all bookmarks containing it.`)) {
-          return;
-      }
-
-      // Find all affected bookmarks
-      const affectedBookmarks = bookmarks.filter(b => b.folders?.includes(folderName));
-      if (affectedBookmarks.length === 0) return;
-
-      setLoading(true);
-      try {
-          // Process updates in parallel
-          const updates = affectedBookmarks.map(b => {
-             const newFolders = b.folders?.filter(f => f !== folderName) || [];
-             return supabase.from('bookmarks').update({ folders: newFolders }).eq('id', b.id);
-          });
-
-          await Promise.all(updates);
-          await fetchBookmarks(true); // Refetch to ensure state is clean
-          if (filterFolder === folderName) {
-              setFilterFolder(null); // Clear filter if we deleted the current folder
-          }
-      } catch (err: any) {
-          alert('Error deleting folder: ' + err.message);
-      } finally {
-          setLoading(false);
-      }
+      // Then save DB
+      await updateBookmark(id, { archive_url: archiveUrl });
   };
 
   const handleSetFilterTag = (tag: string | null) => {
     setFilterTag(tag);
     if (tag) {
-        setFilterFolder(null); // Clear folder filter if selecting a tag
-        if (view === 'tags' || view === 'unread' || view === 'folders' || view === 'detail') {
-            setView('list');
-        }
+        setFilterFolder(null);
+        if (['tags','unread','folders','detail'].includes(view)) setView('list');
     }
   };
 
   const handleSetFilterFolder = (folder: string | null) => {
       setFilterFolder(folder);
       if (folder) {
-          setFilterTag(null); // Clear tag filter if selecting a folder
+          setFilterTag(null);
           setView('list');
       }
   };
@@ -388,6 +182,12 @@ const App: React.FC = () => {
       window.scrollTo(0, 0);
   };
 
+  const handleUpdateFolderDelete = async (folder: string) => {
+      await deleteEntireFolder(folder);
+      if (filterFolder === folder) setFilterFolder(null);
+  }
+
+  // Filtering Logic
   const displayedBookmarks = bookmarks.filter(b => {
       const matchesView = view === 'unread' ? b.to_read : true;
       const matchesTag = filterTag ? (b.tags && b.tags.includes(filterTag)) : true;
@@ -406,7 +206,7 @@ const App: React.FC = () => {
   const selectedBookmark = bookmarks.find(b => b.id === selectedBookmarkId);
 
   // --------------------------------------------------------------------------
-  // MISSING CONFIGURATION SCREEN (PRESERVED VERBATIM)
+  // DB CONFIG CHECK (UNCHANGED UI - RESTORED)
   // --------------------------------------------------------------------------
   if (!isSupabaseConfigured) {
     return (
@@ -451,43 +251,31 @@ const App: React.FC = () => {
   }
 
   // --------------------------------------------------------------------------
-  // POPUP MODE RENDERING
+  // POPUP UI
   // --------------------------------------------------------------------------
   if (isPopupMode) {
-      // Small login screen if not authenticated
-      if (!session) {
-          return (
-            <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
-                <Auth isPopup={true} />
-            </div>
-          );
-      }
+      if (!session) return <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4"><Auth isPopup={true} /></div>;
 
-      // Success Screen
       if (view === 'list' && !initialBookmarkData) {
           return (
               <div className="h-screen flex flex-col items-center justify-center bg-green-50 text-green-800 p-6 text-center">
                   <div className="text-5xl mb-4 text-green-600">✓</div>
                   <h2 className="font-bold text-xl mb-1">Saved</h2>
                   <p className="text-xs text-green-700 opacity-80">to LinkKiste</p>
-                  {/* Optional: Close button if window.close() is blocked */}
-                  <div className="mt-8">
-                     <button onClick={() => window.close()} className="text-xs underline hover:no-underline">Close window</button>
-                  </div>
+                  <div className="mt-8"><button onClick={() => window.close()} className="text-xs underline hover:no-underline">Close window</button></div>
               </div>
           );
       }
 
-      // The minimal ADD Screen
       return (
           <div className="min-h-screen bg-white px-5 py-4">
                <AddBookmark 
-                  onSave={handleSaveBookmark}
+                  onSave={handleSaveWrapper}
                   onCancel={() => window.close()}
                   initialUrl={initialBookmarkData?.url}
                   initialTitle={initialBookmarkData?.title}
                   allFolders={allFolders} 
-                  existingUrls={existingUrls} // Pass existing URLs for duplicate check
+                  existingUrls={existingUrls}
                   isPopup={true}
                 />
           </div>
@@ -495,11 +283,9 @@ const App: React.FC = () => {
   }
 
   // --------------------------------------------------------------------------
-  // STANDARD APP MODE (Full Layout)
+  // MAIN UI
   // --------------------------------------------------------------------------
-  if (!session) {
-    return <Auth />;
-  }
+  if (!session) return <Auth />;
 
   return (
     <Layout 
@@ -520,16 +306,16 @@ const App: React.FC = () => {
         <>
           <BookmarkList 
             bookmarks={displayedBookmarks}
-            onDelete={handleDeleteBookmark}
-            onToggleRead={handleToggleRead}
+            onDelete={deleteBookmark}
+            onToggleRead={toggleReadStatus}
             onArchive={handleArchiveBookmark}
             filterTag={filterTag}
             setFilterTag={handleSetFilterTag}
             filterFolder={filterFolder}
             setFilterFolder={handleSetFilterFolder}
-            onAddFolder={handleAddFolderToBookmark}
-            onRemoveFolderFromBookmark={handleRemoveFolderFromBookmark}
-            onDeleteFolder={handleDeleteEntireFolder}
+            onAddFolder={addFolder}
+            onRemoveFolderFromBookmark={removeFolder}
+            onDeleteFolder={handleUpdateFolderDelete}
             onViewDetail={handleViewDetail}
             loading={loading}
             viewMode={view}
@@ -555,19 +341,19 @@ const App: React.FC = () => {
       {view === 'detail' && selectedBookmark && (
           <BookmarkDetail 
             bookmark={selectedBookmark}
-            onSaveNotes={handleSaveNotes}
-            onUpdate={handleUpdateBookmark}
+            onSaveNotes={saveNotes}
+            onUpdate={(id, data) => updateBookmark(id, data)}
             onArchive={handleArchiveBookmark}
             allFolders={allFolders}
             onClose={() => setView('list')}
-            onDelete={handleDeleteBookmark}
-            onToggleRead={handleToggleRead}
+            onDelete={deleteBookmark}
+            onToggleRead={toggleReadStatus}
           />
       )}
 
       {view === 'add' && (
         <AddBookmark 
-          onSave={handleSaveBookmark}
+          onSave={handleSaveWrapper}
           onCancel={() => {
               setView('list');
               setInitialBookmarkData(null);
@@ -575,7 +361,7 @@ const App: React.FC = () => {
           initialUrl={initialBookmarkData?.url}
           initialTitle={initialBookmarkData?.title}
           allFolders={allFolders}
-          existingUrls={existingUrls} // Pass existing URLs for duplicate check
+          existingUrls={existingUrls} 
         />
       )}
 

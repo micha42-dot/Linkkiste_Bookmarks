@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NewBookmark } from '../types';
+import { normalizeUrl, parseTags } from '../utils/helpers';
 
 interface AddBookmarkProps {
   onSave: (bookmark: NewBookmark) => Promise<void>;
@@ -7,7 +8,7 @@ interface AddBookmarkProps {
   initialUrl?: string;
   initialTitle?: string;
   allFolders?: string[];
-  existingUrls?: string[]; // List of existing URLs to check against
+  existingUrls?: string[];
   isPopup?: boolean;
 }
 
@@ -45,19 +46,8 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
           setIsDuplicate(false);
           return;
       }
-
-      // Normalize URL for comparison (strip protocol, www, trailing slash)
-      const normalize = (u: string) => {
-          try {
-              return u.trim().toLowerCase()
-                  .replace(/^(https?:\/\/)?(www\.)?/, '')
-                  .replace(/\/$/, '');
-          } catch(e) { return u; }
-      };
-
-      const currentNorm = normalize(url);
-      const found = existingUrls.some(ex => normalize(ex) === currentNorm);
-      
+      const currentNorm = normalizeUrl(url);
+      const found = existingUrls.some(ex => normalizeUrl(ex) === currentNorm);
       setIsDuplicate(found);
   }, [url, existingUrls]);
 
@@ -90,24 +80,18 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
   const handleFolderSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
       const val = e.target.value;
       if (!val) return;
-      
       if (val === '___CREATE_NEW___') {
           setIsCreatingFolder(true);
       } else {
-          // Add if not exists
-          if (!selectedFolders.includes(val)) {
-              setSelectedFolders([...selectedFolders, val]);
-          }
+          if (!selectedFolders.includes(val)) setSelectedFolders([...selectedFolders, val]);
       }
-      e.target.value = ''; // Reset select
+      e.target.value = '';
   };
 
   const confirmNewFolder = () => {
       const val = newFolderTemp.trim();
-      if (val) {
-          if (!selectedFolders.includes(val)) {
-              setSelectedFolders([...selectedFolders, val]);
-          }
+      if (val && !selectedFolders.includes(val)) {
+          setSelectedFolders([...selectedFolders, val]);
       }
       setNewFolderTemp('');
       setIsCreatingFolder(false);
@@ -122,12 +106,8 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
     if (!url.trim()) return;
 
     setLoading(true);
-    
-    const tagArray = tags
-      .split(',')
-      .map(t => t.trim().toLowerCase())
-      .filter(t => t.length > 0);
-
+    // Use shared utility
+    const tagArray = parseTags(tags);
     const finalTitle = title.trim() || url;
 
     await onSave({
@@ -138,22 +118,16 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
       folders: selectedFolders,
       to_read: toRead
     });
-    
     setLoading(false);
   };
 
-  const previewTags = tags
-    .split(',')
-    .map(t => t.trim())
-    .filter(t => t.length > 0);
+  // Live preview logic using simplified split just for display
+  const previewTags = tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
 
   return (
     <div className={`w-full ${isPopup ? '' : 'max-w-xl'}`}>
-      
       {!isPopup && (
-          <h2 className="text-lg font-bold mb-4 text-black border-b border-gray-200 pb-2">
-            Add a new bookmark
-          </h2>
+          <h2 className="text-lg font-bold mb-4 text-black border-b border-gray-200 pb-2">Add a new bookmark</h2>
       )}
 
       {isPopup && (
@@ -166,7 +140,6 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
           </div>
       )}
 
-      {/* DUPLICATE WARNING */}
       {isDuplicate && (
           <div className="mb-4 p-3 bg-[#f0fdf4] text-del-blue border border-blue-200 text-xs font-bold rounded-sm text-center uppercase tracking-wide">
               Bookmark already exists
@@ -174,102 +147,46 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
       )}
       
       <form onSubmit={handleSubmit} className="space-y-4">
-        
-        {/* URL Field */}
         <div className="relative">
              {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-600">URL</label>}
              <div className="flex">
-                <input
-                    type="url"
-                    required
-                    className={`flex-grow border border-gray-300 p-2 focus:border-del-blue focus:ring-1 focus:ring-del-blue outline-none rounded-l-sm transition-all ${isPopup ? 'text-xs bg-gray-50 text-gray-500' : 'text-sm'} ${isDuplicate ? 'border-blue-300 bg-blue-50' : ''}`}
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://"
-                />
-                <button
-                    type="button"
-                    onClick={handleAutoFill}
-                    disabled={fetchingMeta || !url}
-                    className="bg-gray-100 border border-l-0 border-gray-300 px-3 text-xs font-bold text-gray-500 hover:text-del-blue hover:bg-white rounded-r-sm transition-colors"
-                    title="Auto-fetch details"
-                >
-                    {fetchingMeta ? '...' : '⚡'}
-                </button>
+                <input type="url" required className={`flex-grow border border-gray-300 p-2 focus:border-del-blue focus:ring-1 focus:ring-del-blue outline-none rounded-l-sm transition-all ${isPopup ? 'text-xs bg-gray-50 text-gray-500' : 'text-sm'} ${isDuplicate ? 'border-blue-300 bg-blue-50' : ''}`} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://" />
+                <button type="button" onClick={handleAutoFill} disabled={fetchingMeta || !url} className="bg-gray-100 border border-l-0 border-gray-300 px-3 text-xs font-bold text-gray-500 hover:text-del-blue hover:bg-white rounded-r-sm transition-colors" title="Auto-fetch details">{fetchingMeta ? '...' : '⚡'}</button>
              </div>
         </div>
 
-        {/* Title */}
         <div>
           {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-600">Title</label>}
-          <input
-            type="text"
-            required
-            className={`w-full border border-gray-300 p-2 focus:border-del-blue focus:ring-1 focus:ring-del-blue outline-none font-bold text-black rounded-sm ${isPopup ? 'text-sm' : 'text-sm'}`}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Title"
-          />
+          <input type="text" required className={`w-full border border-gray-300 p-2 focus:border-del-blue focus:ring-1 focus:ring-del-blue outline-none font-bold text-black rounded-sm ${isPopup ? 'text-sm' : 'text-sm'}`} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" />
         </div>
 
-        {/* Description */}
         <div>
           {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-600">Description</label>}
-          <textarea
-            className={`w-full border border-gray-300 p-2 focus:border-del-blue focus:ring-1 focus:ring-del-blue outline-none rounded-sm resize-none ${isPopup ? 'text-xs h-16' : 'text-sm h-20'}`}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Description (optional)"
-          />
+          <textarea className={`w-full border border-gray-300 p-2 focus:border-del-blue focus:ring-1 focus:ring-del-blue outline-none rounded-sm resize-none ${isPopup ? 'text-xs h-16' : 'text-sm h-20'}`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional)" />
         </div>
 
-        {/* Tags & Folders Row */}
         <div className="grid grid-cols-2 gap-3">
-            {/* TAGS INPUT */}
             <div>
               {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-600">Tags</label>}
-              <input
-                type="text"
-                className={`w-full border border-gray-300 p-2 focus:border-del-blue focus:ring-1 focus:ring-del-blue outline-none rounded-sm ${isPopup ? 'text-xs' : 'text-sm'}`}
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                placeholder={isPopup ? "# Tags (comma)" : "news, tech"}
-                autoFocus={isPopup} 
-              />
-              {/* Tag Chips Display */}
+              <input type="text" className={`w-full border border-gray-300 p-2 focus:border-del-blue focus:ring-1 focus:ring-del-blue outline-none rounded-sm ${isPopup ? 'text-xs' : 'text-sm'}`} value={tags} onChange={(e) => setTags(e.target.value)} placeholder={isPopup ? "# Tags (comma)" : "news, tech"} autoFocus={isPopup} />
               <div className="flex flex-wrap gap-1 mt-1.5 min-h-[20px]">
                 {previewTags.map((t, i) => (
-                    <span key={i} className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-600 border border-gray-200 rounded-sm">
-                        {t}
-                    </span>
+                    <span key={i} className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-600 border border-gray-200 rounded-sm">{t}</span>
                 ))}
                 {previewTags.length === 0 && <span className="text-[10px] text-gray-300 italic">No tags</span>}
               </div>
             </div>
 
-            {/* FOLDERS INPUT */}
             <div>
               {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-600">Folder</label>}
-              
               <div className="relative">
                   {isCreatingFolder ? (
                       <div className="flex gap-1 w-full">
-                          <input 
-                              type="text" 
-                              autoFocus
-                              placeholder="New Folder..." 
-                              className={`border border-del-blue p-2 w-full outline-none rounded-sm ${isPopup ? 'text-xs' : 'text-sm'}`}
-                              value={newFolderTemp}
-                              onChange={(e) => setNewFolderTemp(e.target.value)}
-                              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), confirmNewFolder())}
-                          />
+                          <input type="text" autoFocus placeholder="New Folder..." className={`border border-del-blue p-2 w-full outline-none rounded-sm ${isPopup ? 'text-xs' : 'text-sm'}`} value={newFolderTemp} onChange={(e) => setNewFolderTemp(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), confirmNewFolder())} />
                           <button onClick={confirmNewFolder} type="button" className="bg-del-blue text-white text-xs px-2 rounded-sm">OK</button>
                       </div>
                   ) : (
-                    <select 
-                        onChange={handleFolderSelect}
-                        className={`w-full border border-gray-300 bg-white rounded-sm focus:border-del-blue outline-none cursor-pointer ${isPopup ? 'text-xs p-2' : 'text-sm p-2'}`}
-                    >
+                    <select onChange={handleFolderSelect} className={`w-full border border-gray-300 bg-white rounded-sm focus:border-del-blue outline-none cursor-pointer ${isPopup ? 'text-xs p-2' : 'text-sm p-2'}`}>
                         <option value="">Select Folder...</option>
                         {allFolders.map(f => (
                             <option key={f} value={f}>{f}</option>
@@ -279,19 +196,11 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
                     </select>
                   )}
               </div>
-
-              {/* Folder Chips Display */}
               <div className="flex flex-wrap gap-1 mt-1.5 min-h-[20px]">
                  {selectedFolders.map(folder => (
                      <span key={folder} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-sm">
                          📁 {folder}
-                         <button 
-                             type="button" 
-                             onClick={() => removeFolder(folder)}
-                             className="hover:text-red-600 font-bold"
-                         >
-                             ×
-                         </button>
+                         <button type="button" onClick={() => removeFolder(folder)} className="hover:text-red-600 font-bold">×</button>
                      </span>
                  ))}
                  {selectedFolders.length === 0 && <span className="text-[10px] text-gray-300 italic">No folder</span>}
@@ -300,33 +209,16 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
         </div>
 
         <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-50">
-            <input 
-                type="checkbox" 
-                id="toRead" 
-                checked={toRead} 
-                onChange={(e) => setToRead(e.target.checked)}
-                className="rounded-sm border-gray-300 text-del-blue focus:ring-del-blue"
-            />
+            <input type="checkbox" id="toRead" checked={toRead} onChange={(e) => setToRead(e.target.checked)} className="rounded-sm border-gray-300 text-del-blue focus:ring-del-blue" />
             <label htmlFor="toRead" className="text-xs text-gray-600 cursor-pointer select-none">Mark as <strong>Unread</strong> (Read Later)</label>
         </div>
 
         <div className={`pt-2 flex gap-3 ${isPopup ? 'sticky bottom-0 bg-white pb-2' : ''}`}>
-          <button
-            type="submit"
-            disabled={loading}
-            className={`bg-del-blue hover:bg-del-dark-blue text-white font-bold disabled:opacity-50 shadow-sm transition-colors ${isPopup ? 'w-full py-2.5 text-sm rounded-sm' : 'px-6 py-1.5 text-sm uppercase rounded-sm'}`}
-          >
+          <button type="submit" disabled={loading} className={`bg-del-blue hover:bg-del-dark-blue text-white font-bold disabled:opacity-50 shadow-sm transition-colors ${isPopup ? 'w-full py-2.5 text-sm rounded-sm' : 'px-6 py-1.5 text-sm uppercase rounded-sm'}`}>
             {loading ? 'Saving...' : (isDuplicate ? 'SAVE ANYWAY' : 'Save Bookmark')}
           </button>
-          
           {!isPopup && (
-              <button
-                type="button"
-                onClick={onCancel}
-                className="text-gray-500 text-xs hover:underline uppercase font-bold px-2"
-              >
-                cancel
-              </button>
+              <button type="button" onClick={onCancel} className="text-gray-500 text-xs hover:underline uppercase font-bold px-2">cancel</button>
           )}
         </div>
       </form>
