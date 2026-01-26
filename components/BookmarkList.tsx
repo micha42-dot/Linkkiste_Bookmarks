@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Bookmark, ViewMode } from '../types';
 
 interface BookmarkListProps {
@@ -45,6 +45,15 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
   const [addingFolderToId, setAddingFolderToId] = useState<number | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
   
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+
+  // Reset to Page 1 whenever the data (filters) change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [bookmarks.length, filterTag, filterFolder, viewMode]);
+  
   const allTags = useMemo(() => {
     const counts: Record<string, number> = {};
     bookmarks.flatMap(b => b.tags || []).forEach(tag => {
@@ -81,6 +90,13 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
   const topTags = allTags.slice(0, 40);
   const unreadCount = bookmarks.filter(b => b.to_read).length;
 
+  // PAGINATION LOGIC
+  const totalPages = Math.ceil(bookmarks.length / itemsPerPage);
+  const paginatedBookmarks = useMemo(() => {
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      return bookmarks.slice(startIndex, startIndex + itemsPerPage);
+  }, [bookmarks, currentPage]);
+
   const handleDelete = (id: number, title: string) => {
     if (window.confirm(`Möchtest du den Link "${title}" wirklich löschen?`)) {
       onDelete(id);
@@ -105,6 +121,11 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
           setAddingFolderToId(null);
           setNewFolderName('');
       }
+  };
+
+  const handlePageChange = (newPage: number) => {
+      setCurrentPage(newPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   if (loading) {
@@ -205,7 +226,8 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 </div>
             )}
             
-            {bookmarks.map(bm => {
+            {/* Render PAGINATED bookmarks instead of all */}
+            {paginatedBookmarks.map(bm => {
                 const dateObj = new Date(bm.created_at);
                 const dateStr = dateObj.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
                 const hasNotes = bm.notes && bm.notes.trim().length > 0;
@@ -367,6 +389,54 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 </div>
                 )
             })}
+            
+            {/* PAGINATION CONTROLS */}
+            {totalPages > 1 && (
+                <div className="mt-8 flex justify-center items-center gap-2 text-xs">
+                    <button 
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1.5 border border-gray-200 bg-gray-50 rounded-sm hover:bg-white hover:text-del-blue disabled:opacity-40 disabled:hover:text-inherit"
+                    >
+                        &laquo; Prev
+                    </button>
+                    
+                    {/* Page Numbers */}
+                    <div className="flex gap-1">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1)
+                            .filter(p => p === 1 || p === totalPages || (p >= currentPage - 1 && p <= currentPage + 1))
+                            .map((page, index, array) => {
+                                // Add ellipsis logic
+                                const prev = array[index - 1];
+                                const showEllipsis = prev && page - prev > 1;
+
+                                return (
+                                    <React.Fragment key={page}>
+                                        {showEllipsis && <span className="px-1 text-gray-400">...</span>}
+                                        <button 
+                                            onClick={() => handlePageChange(page)}
+                                            className={`px-3 py-1.5 rounded-sm font-bold ${
+                                                currentPage === page 
+                                                ? 'bg-del-blue text-white' 
+                                                : 'bg-white border border-gray-200 hover:text-del-blue'
+                                            }`}
+                                        >
+                                            {page}
+                                        </button>
+                                    </React.Fragment>
+                                )
+                            })}
+                    </div>
+
+                    <button 
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1.5 border border-gray-200 bg-gray-50 rounded-sm hover:bg-white hover:text-del-blue disabled:opacity-40 disabled:hover:text-inherit"
+                    >
+                        Next &raquo;
+                    </button>
+                </div>
+            )}
             </div>
         )}
 
@@ -384,6 +454,15 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                         + Add a new bookmark
                     </button>
                 </li>
+                <li>
+                    <button 
+                        onClick={() => { setFilterTag(null); setFilterFolder(null); window.dispatchEvent(new CustomEvent('changeView', {detail: 'unread'})) }} 
+                        className={`hover:underline block w-full text-left px-1 py-1 ${viewMode === 'unread' ? 'text-black font-bold' : 'text-del-blue'}`}
+                    >
+                        Unread items ({unreadCount})
+                    </button>
+                </li>
+                {/* MOVED SYNC BUTTON BELOW UNREAD ITEMS */}
                 {onRefresh && (
                     <li>
                         <button 
@@ -395,14 +474,6 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                         </button>
                     </li>
                 )}
-                <li>
-                    <button 
-                        onClick={() => { setFilterTag(null); setFilterFolder(null); window.dispatchEvent(new CustomEvent('changeView', {detail: 'unread'})) }} 
-                        className={`hover:underline block w-full text-left px-1 py-1 ${viewMode === 'unread' ? 'text-black font-bold' : 'text-del-blue'}`}
-                    >
-                        Unread items ({unreadCount})
-                    </button>
-                </li>
             </ul>
          </div>
         

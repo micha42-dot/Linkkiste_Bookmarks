@@ -300,7 +300,7 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
             const headers = ['Title', 'URL', 'Tags', 'Folders', 'Description', 'To Read', 'Created At', 'Archive URL'];
             content = headers.join(',') + '\n';
             
-            content += bookmarks.map((b: any) => {
+            content += bookmarks.map((b) => {
                 const escapeCsv = (field: any) => {
                     const str = String(field || '').replace(/"/g, '""');
                     return `"${str}"`;
@@ -321,7 +321,7 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
             mimeType = 'application/xml';
             extension = 'xml';
             content = '<?xml version="1.0" encoding="UTF-8"?>\n<bookmarks>\n';
-            content += bookmarks.map((b: any) => 
+            content += bookmarks.map((b) => 
 `  <bookmark>
     <title>${escapeXml(b.title)}</title>
     <url>${escapeXml(b.url)}</url>
@@ -338,10 +338,14 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
             mimeType = 'text/plain';
             extension = 'sql';
             content = '-- LINKkiste Backup\n-- Generated ' + new Date().toISOString() + '\n\n';
-            content += bookmarks.map((b: any) => {
+            content += bookmarks.map((b) => {
                 const safeStr = (s: string | null) => s ? `'${s.replace(/'/g, "''")}'` : 'NULL';
-                const tagsStr = b.tags ? `'{${b.tags.map((t:string) => `"${t.replace(/"/g, '\\"')}"`).join(',')}}'` : "'{}'";
-                const foldersStr = b.folders ? `'{${b.folders.map((t:string) => `"${t.replace(/"/g, '\\"')}"`).join(',')}}'` : "'{}'";
+                
+                const tagsList = b.tags || [];
+                const tagsStr = tagsList.length > 0 ? `'{${tagsList.map((t: string) => `"${t.replace(/"/g, '\\"')}"`).join(',')}}'` : "'{}'";
+                
+                const foldersList = b.folders || [];
+                const foldersStr = foldersList.length > 0 ? `'{${foldersList.map((t: string) => `"${t.replace(/"/g, '\\"')}"`).join(',')}}'` : "'{}'";
                 
                 return `INSERT INTO bookmarks (url, title, description, tags, folders, to_read, created_at, archive_url) VALUES (${safeStr(b.url)}, ${safeStr(b.title)}, ${safeStr(b.description)}, ${tagsStr}, ${foldersStr}, ${b.to_read}, '${b.created_at}', ${safeStr(b.archive_url)});`;
             }).join('\n');
