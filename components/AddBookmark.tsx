@@ -151,7 +151,9 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
              {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-600">URL</label>}
              <div className="flex">
                 <input type="url" required className={`flex-grow border border-gray-300 p-2 focus:border-del-blue focus:ring-1 focus:ring-del-blue outline-none rounded-l-sm transition-all ${isPopup ? 'text-xs bg-gray-50 text-gray-500' : 'text-sm'} ${isDuplicate ? 'border-blue-300 bg-blue-50' : ''}`} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://" />
-                <button type="button" onClick={handleAutoFill} disabled={fetchingMeta || !url} className="bg-gray-100 border border-l-0 border-gray-300 px-3 text-xs font-bold text-gray-500 hover:text-del-blue hover:bg-white rounded-r-sm transition-colors" title="Auto-fetch details">{fetchingMeta ? '...' : '⚡'}</button>
+                <button type="button" onClick={handleAutoFill} disabled={fetchingMeta || !url} className="bg-gray-100 border border-l-0 border-gray-300 px-3 text-xs font-bold text-gray-500 hover:text-del-blue hover:bg-white rounded-r-sm transition-colors min-w-[40px]" title="Auto-fetch details">
+                    {fetchingMeta ? <span className="inline-block animate-bounce">🐈</span> : '⚡'}
+                </button>
              </div>
         </div>
 

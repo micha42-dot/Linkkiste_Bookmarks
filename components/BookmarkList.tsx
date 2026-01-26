@@ -80,11 +80,16 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
 
   const maxTagCount = allTags.length > 0 ? allTags[0][1] : 1;
 
-  // "Heute vor einem Jahr" Logic
+  // "Heute vor einem Jahr" Logic - Safari Safe
   const oneYearAgoToday = useMemo(() => {
     const now = new Date();
     return bookmarks.filter(b => {
-        const d = new Date(b.created_at);
+        if (!b.created_at) return false;
+        // Fix for Safari which dislikes ' ' in ISO strings
+        const safeDate = b.created_at.replace(' ', 'T');
+        const d = new Date(safeDate);
+        if (isNaN(d.getTime())) return false;
+        
         // Match day and month, but from any previous year
         return d.getDate() === now.getDate() && 
                d.getMonth() === now.getMonth() && 

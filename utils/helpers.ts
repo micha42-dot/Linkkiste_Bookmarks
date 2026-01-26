@@ -27,13 +27,21 @@ export const normalizeUrl = (u: string) => {
     } catch(e) { return u; }
 };
 
+// HELPER: Safari-safe date parsing
+const parseDateSafe = (dateString: string): Date | null => {
+    if (!dateString) return null;
+    // Fix SQL timestamps for Safari: "2023-10-10 12:00:00" -> "2023-10-10T12:00:00"
+    const safeString = String(dateString).replace(' ', 'T');
+    const d = new Date(safeString);
+    if (isNaN(d.getTime())) return null;
+    return d;
+}
+
 // Consistent date formatting - SAFARI SAFE
 export const formatDate = (dateString: string): string => {
-    if (!dateString) return '';
+    const dateObj = parseDateSafe(dateString);
+    if (!dateObj) return '';
     try {
-        const dateObj = new Date(dateString);
-        // Check for Invalid Date
-        if (isNaN(dateObj.getTime())) return ''; 
         return dateObj.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
     } catch (e) {
         return '';
@@ -41,11 +49,9 @@ export const formatDate = (dateString: string): string => {
 };
 
 export const formatDateTime = (dateString: string): string => {
-    if (!dateString) return '';
+    const dateObj = parseDateSafe(dateString);
+    if (!dateObj) return '';
     try {
-        const dateObj = new Date(dateString);
-        // Check for Invalid Date
-        if (isNaN(dateObj.getTime())) return '';
         return dateObj.toLocaleDateString('de-DE', { 
             weekday: 'long', 
             year: 'numeric', 
