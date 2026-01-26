@@ -20,6 +20,8 @@ interface BookmarkListProps {
   onAddClick: () => void;
   onRefresh?: () => void;
   isRefreshing?: boolean;
+  usePagination?: boolean;
+  resetTrigger?: number;
 }
 
 export const BookmarkList: React.FC<BookmarkListProps> = ({ 
@@ -40,7 +42,9 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
   userEmail,
   onAddClick,
   onRefresh,
-  isRefreshing = false
+  isRefreshing = false,
+  usePagination = true,
+  resetTrigger = 0
 }) => {
   const [addingFolderToId, setAddingFolderToId] = useState<number | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
@@ -49,10 +53,10 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
-  // Reset to Page 1 whenever the data (filters) change
+  // Reset to Page 1 whenever the data (filters) change OR resetTrigger increments
   useEffect(() => {
     setCurrentPage(1);
-  }, [bookmarks.length, filterTag, filterFolder, viewMode]);
+  }, [bookmarks.length, filterTag, filterFolder, viewMode, resetTrigger]);
   
   const allTags = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -92,10 +96,15 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
 
   // PAGINATION LOGIC
   const totalPages = Math.ceil(bookmarks.length / itemsPerPage);
-  const paginatedBookmarks = useMemo(() => {
+  
+  // Decide which items to show based on settings
+  const displayedItems = useMemo(() => {
+      if (!usePagination) {
+          return bookmarks; // Show all (endless list)
+      }
       const startIndex = (currentPage - 1) * itemsPerPage;
       return bookmarks.slice(startIndex, startIndex + itemsPerPage);
-  }, [bookmarks, currentPage]);
+  }, [bookmarks, currentPage, usePagination]);
 
   const handleDelete = (id: number, title: string) => {
     if (window.confirm(`Möchtest du den Link "${title}" wirklich löschen?`)) {
@@ -226,8 +235,8 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 </div>
             )}
             
-            {/* Render PAGINATED bookmarks instead of all */}
-            {paginatedBookmarks.map(bm => {
+            {/* Render Items (Either Page Chunk OR Full List) */}
+            {displayedItems.map(bm => {
                 const dateObj = new Date(bm.created_at);
                 const dateStr = dateObj.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
                 const hasNotes = bm.notes && bm.notes.trim().length > 0;
@@ -390,8 +399,8 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 )
             })}
             
-            {/* PAGINATION CONTROLS */}
-            {totalPages > 1 && (
+            {/* PAGINATION CONTROLS (Only show if enabled AND we have pages) */}
+            {usePagination && totalPages > 1 && (
                 <div className="mt-8 flex justify-center items-center gap-2 text-xs">
                     <button 
                         onClick={() => handlePageChange(currentPage - 1)}

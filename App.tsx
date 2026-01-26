@@ -23,6 +23,11 @@ const App: React.FC = () => {
   const [selectedBookmarkId, setSelectedBookmarkId] = useState<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
+  // UI Preferences
+  const [usePagination, setUsePagination] = useState(true);
+  // Trigger to reset pagination to page 1
+  const [paginationResetTrigger, setPaginationResetTrigger] = useState(0);
+
   // Extension / Popup State
   const [isPopupMode, setIsPopupMode] = useState(false);
   const [initialBookmarkData, setInitialBookmarkData] = useState<{url: string, title: string} | null>(null);
@@ -31,6 +36,12 @@ const App: React.FC = () => {
     if (!isSupabaseConfigured) {
       setLoading(false);
       return;
+    }
+
+    // Load Preferences
+    const storedPagination = localStorage.getItem('linkkiste_use_pagination');
+    if (storedPagination !== null) {
+        setUsePagination(storedPagination === 'true');
     }
 
     // 1. Check URL params (Extension support)
@@ -140,6 +151,21 @@ const App: React.FC = () => {
           window.removeEventListener('focus', handleWindowFocus);
       };
   }, [session]);
+
+  const handleSetPagination = (enabled: boolean) => {
+      setUsePagination(enabled);
+      localStorage.setItem('linkkiste_use_pagination', String(enabled));
+  };
+
+  // Logic to handle clicking the Logo/Title: Reset view to List AND Page 1
+  const handleLogoClick = () => {
+      setView('list');
+      setFilterTag(null);
+      setFilterFolder(null);
+      setSearchTerm('');
+      setPaginationResetTrigger(prev => prev + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Compute all unique folders for the dropdown in Edit View
   const allFolders = useMemo(() => {
@@ -488,6 +514,7 @@ const App: React.FC = () => {
       }}
       searchTerm={searchTerm}
       setSearchTerm={setSearchTerm}
+      onLogoClick={handleLogoClick}
     >
       {(view === 'list' || view === 'tags' || view === 'folders' || view === 'unread') && (
         <>
@@ -510,6 +537,8 @@ const App: React.FC = () => {
             onAddClick={() => setView('add')}
             onRefresh={() => fetchBookmarks(true)}
             isRefreshing={isRefreshing}
+            usePagination={usePagination}
+            resetTrigger={paginationResetTrigger}
           />
           <div className="mt-12 text-center">
               <button 
@@ -551,7 +580,11 @@ const App: React.FC = () => {
       )}
 
       {view === 'settings' && (
-        <Settings session={session} />
+        <Settings 
+            session={session} 
+            usePagination={usePagination}
+            onTogglePagination={handleSetPagination}
+        />
       )}
       
       {view === 'about' && <About />}

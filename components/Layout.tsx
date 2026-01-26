@@ -8,6 +8,7 @@ interface LayoutProps {
   setView: (view: any) => void;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
+  onLogoClick?: () => void;
 }
 
 interface TabProps {
@@ -39,7 +40,8 @@ export const Layout: React.FC<LayoutProps> = ({
   currentView,
   setView,
   searchTerm,
-  setSearchTerm
+  setSearchTerm,
+  onLogoClick
 }) => {
   const username = userEmail ? userEmail.split('@')[0] : 'user';
 
@@ -69,7 +71,7 @@ export const Layout: React.FC<LayoutProps> = ({
         <div className="px-4 py-4 md:py-6 md:px-8">
             <div 
                 className="flex items-center gap-0 cursor-pointer group w-fit" 
-                onClick={() => setView('list')}
+                onClick={onLogoClick ? onLogoClick : () => setView('list')}
             >
                 <div className="w-6 h-6 md:w-8 md:h-8 bg-black mr-2"></div> 
                 <div className="w-6 h-6 md:w-8 md:h-8 bg-del-blue mr-3"></div>

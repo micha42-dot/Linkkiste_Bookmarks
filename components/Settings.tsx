@@ -5,9 +5,11 @@ import { Bookmark } from '../types';
 
 interface SettingsProps {
   session: Session;
+  usePagination?: boolean;
+  onTogglePagination?: (enabled: boolean) => void;
 }
 
-export const Settings: React.FC<SettingsProps> = ({ session }) => {
+export const Settings: React.FC<SettingsProps> = ({ session, usePagination, onTogglePagination }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: React.ReactNode; type: 'success' | 'error' } | null>(null);
@@ -407,6 +409,31 @@ export const Settings: React.FC<SettingsProps> = ({ session }) => {
             <span>⚙️ Configuration</span>
         </h4>
         
+        <div className="mb-4 pb-4 border-b border-gray-100">
+             <label className="block text-xs font-bold text-gray-600 mb-2">View Preference</label>
+             <div className="flex items-center gap-2">
+                 {onTogglePagination && (
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${usePagination ? 'bg-del-blue' : 'bg-gray-300'}`}>
+                            <div className={`w-3 h-3 bg-white rounded-full shadow-sm transform transition-transform ${usePagination ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                        </div>
+                        <input 
+                            type="checkbox" 
+                            className="hidden" 
+                            checked={usePagination} 
+                            onChange={(e) => onTogglePagination(e.target.checked)} 
+                        />
+                        <span className="text-xs text-gray-700">
+                            {usePagination ? 'Pages (Pagination)' : 'Endless List (Show All)'}
+                        </span>
+                    </label>
+                 )}
+             </div>
+             <p className="text-[10px] text-gray-400 mt-1">
+                 "Pages" splits your list into 20 items per page. "Endless List" shows everything at once.
+             </p>
+        </div>
+
         <div className="mb-2">
             <label className="block text-xs font-bold text-gray-600 mb-1">Archive Service Domain</label>
             <div className="flex gap-2">
