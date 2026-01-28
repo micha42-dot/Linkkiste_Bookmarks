@@ -130,6 +130,22 @@ You can deploy this for free on Vercel, Netlify, or Cloudflare Pages.
 
 ---
 
+## 🔖 The Bookmarklet (Recommended)
+
+The easiest way to save links without installing or signing browser extensions is to use a **Bookmarklet**. This works in Firefox, Chrome, Safari, and Edge.
+
+1.  Show your browser's **Bookmarks Bar**.
+2.  Right-click the bar and select **Add Page** (or "Add Bookmark").
+3.  Name it: **Save to LinkKiste**.
+4.  In the **URL** (or Location) field, paste the code below.
+5.  **Important:** Replace `https://yourlinklistURL.url` with the actual URL of your deployed LinkKiste.
+
+```javascript
+javascript:(function(){var u=encodeURIComponent(window.location.href);var t=encodeURIComponent(document.title);var app='https://YOUR-APP-URL.vercel.app';window.open(app+'?url='+u+'&title='+t+'&mode=popup','LinkKiste','width=500,height=600,scrollbars=yes,resizable=yes');})();
+```
+
+---
+
 ## 🔗 How to Save Links (The "Share Target" Feature)
 
 *Okay, here is the honest truth:* Since this is a self-hosted private tool, there is no magic "Install" button in the App Store that automatically sets up sharing. You have to wire it up yourself.
