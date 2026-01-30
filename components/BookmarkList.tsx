@@ -115,6 +115,12 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
     }
   };
 
+  const handleDeleteFolderWrapper = (folder: string) => {
+      if (window.confirm(`Möchtest du den Ordner "${folder}" wirklich löschen? Die Bookmarks bleiben erhalten, aber die Verknüpfung zu diesem Ordner wird entfernt.`)) {
+          onDeleteFolder(folder);
+      }
+  };
+
   const handleRemoveFromFolder = (id: number, folder: string) => {
     if (window.confirm(`Möchtest du dieses Bookmark wirklich aus dem Ordner "${folder}" entfernen?`)) {
         onRemoveFolderFromBookmark(id, folder);
@@ -165,7 +171,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 <span className="font-bold text-white px-2 py-0.5 bg-del-blue rounded-sm flex items-center gap-1">📁 {filterFolder}</span>
             </div>
             <div className="flex items-center gap-3 self-end sm:self-auto">
-                 <button onClick={() => onDeleteFolder(filterFolder)} className="text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-bold uppercase transition-colors" title="Delete this folder completely from all bookmarks">Delete Folder</button>
+                 <button onClick={() => handleDeleteFolderWrapper(filterFolder)} className="text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-bold uppercase transition-colors" title="Delete this folder completely from all bookmarks">Delete Folder</button>
                 <span className="text-gray-300 hidden sm:inline">|</span>
                 <button onClick={() => setFilterFolder(null)} className="text-del-blue font-bold text-xs uppercase hover:underline">close view</button>
             </div>
@@ -202,7 +208,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                             </div>
                             <span className="bg-white border border-gray-200 text-xs px-2 py-0.5 rounded text-gray-400 group-hover:text-del-blue group-hover:border-del-blue">{count}</span>
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); onDeleteFolder(folder); }} className="absolute top-2 right-2 p-1 text-gray-300 hover:text-red-600 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity" title="Delete Folder">
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteFolderWrapper(folder); }} className="absolute top-2 right-2 p-1 text-gray-300 hover:text-red-600 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity" title="Delete Folder">
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                         </button>
                     </div>
@@ -366,7 +372,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                     {allFolders.map(([folder, count]) => (
                         <div key={folder} className="flex justify-between items-center group">
                             <button onClick={() => setFilterFolder(folder)} className={`flex-grow flex justify-between items-center text-xs px-1 py-1 rounded hover:bg-[#f0f0f0] ${filterFolder === folder ? 'font-bold bg-gray-100' : ''}`}><span className="text-del-blue hover:underline text-left truncate w-32">{folder}</span><span className="text-gray-400 text-[10px]">{count}</span></button>
-                            <button onClick={() => onDeleteFolder(folder)} className="ml-1 text-[10px] text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 p-1" title="Delete Folder">x</button>
+                            <button onClick={() => handleDeleteFolderWrapper(folder)} className="ml-1 text-[10px] text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 p-1" title="Delete Folder">x</button>
                         </div>
                     ))}
                 </div>
