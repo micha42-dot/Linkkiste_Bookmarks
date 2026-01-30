@@ -252,14 +252,14 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                         )}
                         
                         {/* Source / Domain Line */}
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center gap-1.5 mb-2">
                              <img 
                                 src={`https://www.google.com/s2/favicons?domain=${fullHostname}&sz=32`} 
                                 alt="" 
-                                className="w-4 h-4"
+                                className="w-3 h-3"
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                              />
-                             <span className="text-xs font-bold text-gray-400">{hostname}</span>
+                             <span className="text-[10px] font-bold text-gray-400">{hostname}</span>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-y-2 gap-x-2 text-xs">
