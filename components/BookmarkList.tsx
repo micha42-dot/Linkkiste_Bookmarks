@@ -217,6 +217,24 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 const dateStr = formatDate(bm.created_at);
                 const hasNotes = bm.notes && bm.notes.trim().length > 0;
                 
+                // Extract hostname for display and favicon
+                const hostname = (() => {
+                    try {
+                        return new URL(bm.url).hostname.replace('www.', '');
+                    } catch {
+                        return '';
+                    }
+                })();
+                
+                // Get full hostname for favicon service to be accurate
+                const fullHostname = (() => {
+                    try {
+                        return new URL(bm.url).hostname;
+                    } catch {
+                        return '';
+                    }
+                })();
+
                 return (
                 <div key={bm.id} className="pb-4 border-b border-[#eeeeee] group flex gap-3">
                     {bm.to_read && <div className="mt-2 w-1.5 h-1.5 bg-del-blue rounded-full flex-shrink-0" title="To Read"></div>}
@@ -225,15 +243,6 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                             <a href={bm.url} target="_blank" rel="noopener noreferrer" className="text-[16px] font-bold text-del-blue hover:bg-blue-50 hover:underline px-0.5 -ml-0.5 break-words">
                                 {bm.title}
                             </a>
-                            <span className="text-[10px] text-gray-400 uppercase ml-2 tracking-wide inline-block">
-                                {(() => {
-                                    try {
-                                        return new URL(bm.url).hostname.replace('www.', '');
-                                    } catch {
-                                        return '';
-                                    }
-                                })()}
-                            </span>
                         </div>
                         
                         {bm.description && (
@@ -241,6 +250,17 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                 {bm.description}
                             </div>
                         )}
+                        
+                        {/* Source / Domain Line */}
+                        <div className="flex items-center gap-2 mb-2">
+                             <img 
+                                src={`https://www.google.com/s2/favicons?domain=${fullHostname}&sz=32`} 
+                                alt="" 
+                                className="w-4 h-4"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                             />
+                             <span className="text-xs font-bold text-gray-400">{hostname}</span>
+                        </div>
 
                         <div className="flex flex-wrap items-center gap-y-2 gap-x-2 text-xs">
                             <span className="text-[#999] text-[11px] whitespace-nowrap mr-2">on {dateStr}</span>
