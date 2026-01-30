@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Bookmark } from '../types';
-import { formatDateTime } from '../utils/helpers';
+import { formatDateTime, parseTags } from '../utils/helpers';
 
 interface BookmarkDetailProps {
   bookmark: Bookmark;
@@ -59,7 +59,7 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
   const handleSaveMetaAction = async () => {
     setIsSavingMeta(true);
     try {
-        const tagArray = tagsStr.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        const tagArray = parseTags(tagsStr);
         await onUpdate(bookmark.id, {
             title, url, description, tags: tagArray, folders: selectedFolders, archive_url: archiveUrl.trim() || null
         });
