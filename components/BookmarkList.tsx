@@ -251,18 +251,19 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                             </div>
                         )}
                         
-                        {/* Source / Domain Line */}
-                        <div className="flex items-center gap-1.5 mb-2">
-                             <img 
-                                src={`https://www.google.com/s2/favicons?domain=${fullHostname}&sz=32`} 
-                                alt="" 
-                                className="w-3 h-3"
-                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                             />
-                             <span className="text-[10px] font-bold text-gray-400">{hostname}</span>
-                        </div>
-
                         <div className="flex flex-wrap items-center gap-y-2 gap-x-2 text-xs">
+                             {/* Source info (Icon + Domain) followed by pipe */}
+                             <div className="flex items-center gap-1.5">
+                                 <img 
+                                    src={`https://www.google.com/s2/favicons?domain=${fullHostname}&sz=32`} 
+                                    alt="" 
+                                    className="w-3 h-3"
+                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                 />
+                                 <span className="text-[10px] font-bold text-gray-400">{hostname}</span>
+                            </div>
+                            <span className="text-gray-300 text-[10px]">|</span>
+
                             <span className="text-[#999] text-[11px] whitespace-nowrap mr-2">on {dateStr}</span>
 
                             {bm.tags && bm.tags.length > 0 && (
