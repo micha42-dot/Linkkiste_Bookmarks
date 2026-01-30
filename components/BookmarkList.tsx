@@ -174,14 +174,18 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
 
         {viewMode === 'tags' ? (
              <div className="mt-4">
-                <h3 className="font-bold text-xl mb-6 text-gray-800 border-b border-gray-200 pb-2">Tag Cloud</h3>
-                <div className="flex flex-wrap gap-x-6 gap-y-4 items-baseline">
-                {allTags.map(([tag, count]) => {
-                    const size = 12 + (count / maxTagCount) * 18;
-                    return (
-                        <button key={tag} onClick={() => setFilterTag(tag)} className="tag-cloud-item text-del-blue transition-colors" style={{ fontSize: `${size}px` }}>{tag}</button>
-                    );
-                })}
+                <h3 className="font-bold text-xl mb-6 text-gray-800 border-b border-gray-200 pb-2">All Tags</h3>
+                <div className="flex flex-wrap gap-2">
+                {allTags.map(([tag, count]) => (
+                    <button 
+                        key={tag} 
+                        onClick={() => setFilterTag(tag)} 
+                        className="group border border-[#cccccc] bg-white hover:border-del-blue hover:bg-blue-50 px-2 py-1.5 rounded-sm text-sm transition-all flex items-center gap-2"
+                    >
+                        <span className="font-bold text-del-blue group-hover:underline">#{tag}</span>
+                        <span className="text-gray-400 text-xs font-normal bg-gray-50 px-1.5 rounded-sm group-hover:bg-white group-hover:text-del-blue">{count}</span>
+                    </button>
+                ))}
                 </div>
              </div>
         ) : viewMode === 'folders' ? (
@@ -382,9 +386,11 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
             <h4 className="font-bold text-xs text-white bg-[#86c944] mb-3 uppercase tracking-wide p-2 rounded-sm">Popular Tags</h4>
             <div className="flex flex-col">
                 {topTags.map(([tag, count]) => (
-                    <div key={tag} className="flex justify-between items-center text-xs px-1 py-0.5">
-                        <button onClick={() => setFilterTag(tag)} className={`text-del-blue hover:underline hover:bg-blue-50 py-0.5 ${filterTag === tag ? 'font-bold text-black bg-yellow-100' : ''}`}>{tag}</button>
-                        <span className="text-gray-400 text-[10px]">{count}</span>
+                    <div key={tag} className="flex justify-between items-center">
+                        <button onClick={() => setFilterTag(tag)} className={`flex-grow flex justify-between items-center text-xs px-1 py-1 rounded hover:bg-[#f0f0f0] ${filterTag === tag ? 'font-bold bg-yellow-100' : ''}`}>
+                            <span className={`text-del-blue hover:underline text-left truncate w-32 ${filterTag === tag ? 'text-black' : ''}`}>{tag}</span>
+                            <span className="text-gray-400 text-[10px]">{count}</span>
+                        </button>
                     </div>
                 ))}
                 <button onClick={() => window.dispatchEvent(new CustomEvent('changeView', {detail: 'tags'}))} className="text-right text-[10px] text-gray-400 mt-2 hover:underline py-1">view all tags &raquo;</button>
