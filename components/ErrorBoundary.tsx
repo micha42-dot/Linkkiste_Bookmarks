@@ -48,6 +48,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
       );
     }
 
-    return this.props.children;
+    // Cast 'this' to any to avoid "Property 'props' does not exist" TS error in some environments
+    return (this as any).props.children;
   }
 }
