@@ -48,6 +48,24 @@ const App: React.FC = () => {
       existingUrls
   } = useBookmarks(session);
 
+  // Helper to sync URL with State (Permalinks)
+  const syncUrl = (params: Record<string, string | null>) => {
+      if (isPopupMode) return; // Don't touch URL in popup mode
+      
+      const url = new URL(window.location.href);
+      
+      // Reset mutually exclusive permalink keys
+      const keysToReset = ['id', 'tag', 'folder'];
+      keysToReset.forEach(k => url.searchParams.delete(k));
+
+      // Set new params
+      Object.entries(params).forEach(([key, value]) => {
+          if (value) url.searchParams.set(key, value);
+      });
+      
+      window.history.pushState({}, '', url);
+  };
+
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
@@ -57,11 +75,16 @@ const App: React.FC = () => {
         setUsePagination(storedPagination === 'true');
     }
 
-    // 1. Check URL params (Extension support) & SANITIZE THEM
+    // 1. Check URL params (Extension support & Permalinks) & SANITIZE THEM
     const params = new URLSearchParams(window.location.search);
     const modeParam = params.get('mode');
     const urlParam = params.get('url');
     const titleParam = params.get('title');
+    
+    // Permalink Params
+    const idParam = params.get('id');
+    const tagParam = params.get('tag');
+    const folderParam = params.get('folder');
 
     if (modeParam === 'popup') {
         setIsPopupMode(true);
@@ -83,6 +106,18 @@ const App: React.FC = () => {
           const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
           window.history.replaceState({path: newUrl}, '', newUrl);
       }
+    } else if (idParam) {
+        // Permalink: Detail View
+        setSelectedBookmarkId(Number(idParam));
+        setView('detail');
+    } else if (tagParam) {
+        // Permalink: Tag
+        setFilterTag(sanitizeInput(tagParam));
+        setView('list');
+    } else if (folderParam) {
+        // Permalink: Folder
+        setFilterFolder(sanitizeInput(folderParam));
+        setView('list');
     }
 
     // Auth Listeners
@@ -92,10 +127,39 @@ const App: React.FC = () => {
     // Custom Event Listener
     const handleViewChange = (e: any) => setView(e.detail);
     window.addEventListener('changeView', handleViewChange);
+    
+    // Browser Back Button Listener (Popstate)
+    const handlePopState = () => {
+        const p = new URLSearchParams(window.location.search);
+        const pId = p.get('id');
+        const pTag = p.get('tag');
+        const pFolder = p.get('folder');
+
+        if (pId) {
+            setSelectedBookmarkId(Number(pId));
+            setView('detail');
+        } else if (pTag) {
+            setFilterTag(pTag);
+            setFilterFolder(null);
+            setView('list');
+        } else if (pFolder) {
+            setFilterFolder(pFolder);
+            setFilterTag(null);
+            setView('list');
+        } else {
+            // Reset to root
+            setFilterTag(null);
+            setFilterFolder(null);
+            setSelectedBookmarkId(null);
+            if (view === 'detail') setView('list');
+        }
+    };
+    window.addEventListener('popstate', handlePopState);
 
     return () => {
         subscription.unsubscribe();
         window.removeEventListener('changeView', handleViewChange);
+        window.removeEventListener('popstate', handlePopState);
     };
   }, [isSupabaseConfigured]);
 
@@ -129,6 +193,7 @@ const App: React.FC = () => {
       setSearchTerm('');
       setPaginationResetTrigger(prev => prev + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      syncUrl({}); // Clear permalinks
   };
 
   const handleLogout = async () => {
@@ -165,6 +230,9 @@ const App: React.FC = () => {
     if (tag) {
         setFilterFolder(null);
         if (['tags','unread','folders','detail'].includes(view)) setView('list');
+        syncUrl({ tag });
+    } else {
+        syncUrl({});
     }
   };
 
@@ -173,6 +241,9 @@ const App: React.FC = () => {
       if (folder) {
           setFilterTag(null);
           setView('list');
+          syncUrl({ folder });
+      } else {
+          syncUrl({});
       }
   };
 
@@ -180,11 +251,15 @@ const App: React.FC = () => {
       setSelectedBookmarkId(id);
       setView('detail');
       window.scrollTo(0, 0);
+      syncUrl({ id: String(id) });
   };
 
   const handleUpdateFolderDelete = async (folder: string) => {
       await deleteEntireFolder(folder);
-      if (filterFolder === folder) setFilterFolder(null);
+      if (filterFolder === folder) {
+          setFilterFolder(null);
+          syncUrl({});
+      }
   }
 
   // Filtering Logic
@@ -297,6 +372,7 @@ const App: React.FC = () => {
           setFilterTag(null);
           setFilterFolder(null);
           setInitialBookmarkData(null);
+          syncUrl({}); // Clear permalinks when switching main tabs
       }}
       searchTerm={searchTerm}
       setSearchTerm={setSearchTerm}
@@ -345,7 +421,10 @@ const App: React.FC = () => {
             onUpdate={(id, data) => updateBookmark(id, data)}
             onArchive={handleArchiveBookmark}
             allFolders={allFolders}
-            onClose={() => setView('list')}
+            onClose={() => {
+                setView('list');
+                syncUrl({});
+            }}
             onDelete={deleteBookmark}
             onToggleRead={toggleReadStatus}
           />
