@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { Bookmark, ViewMode } from '../types';
 import { formatDate, parseDateSafe } from '../utils/helpers';
 
@@ -22,7 +22,9 @@ interface BookmarkListProps {
   onRefresh?: () => void;
   isRefreshing?: boolean;
   usePagination?: boolean;
-  resetTrigger?: number;
+  // Props for lifted state pagination
+  currentPage: number;
+  onPageChange: (page: number) => void;
 }
 
 export const BookmarkList: React.FC<BookmarkListProps> = ({ 
@@ -32,7 +34,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
   onArchive,
   filterTag, 
   setFilterTag,
-  filterFolder,
+  filterFolder, 
   setFilterFolder,
   onAddFolder,
   onRemoveFolderFromBookmark,
@@ -45,20 +47,14 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
   onRefresh,
   isRefreshing = false,
   usePagination = true,
-  resetTrigger = 0
+  currentPage,
+  onPageChange
 }) => {
-  const [addingFolderToId, setAddingFolderToId] = useState<number | null>(null);
-  const [newFolderName, setNewFolderName] = useState('');
+  const [addingFolderToId, setAddingFolderToId] = React.useState<number | null>(null);
+  const [newFolderName, setNewFolderName] = React.useState('');
   
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
-  // Reset to Page 1 whenever the data (filters) change OR resetTrigger increments
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [bookmarks.length, filterTag, filterFolder, viewMode, resetTrigger]);
-  
   const allTags = useMemo(() => {
     const counts: Record<string, number> = {};
     bookmarks.flatMap(b => b.tags || []).forEach(tag => {
@@ -141,8 +137,8 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
       }
   };
 
-  const handlePageChange = (newPage: number) => {
-      setCurrentPage(newPage);
+  const handlePageScroll = (newPage: number) => {
+      onPageChange(newPage);
       window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -337,7 +333,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
             
             {usePagination && totalPages > 1 && (
                 <div className="mt-8 flex justify-center items-center gap-2 text-xs">
-                    <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1.5 border border-gray-200 bg-gray-50 rounded-sm hover:bg-white hover:text-del-blue disabled:opacity-40 disabled:hover:text-inherit">&laquo; Prev</button>
+                    <button onClick={() => handlePageScroll(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1.5 border border-gray-200 bg-gray-50 rounded-sm hover:bg-white hover:text-del-blue disabled:opacity-40 disabled:hover:text-inherit">&laquo; Prev</button>
                     <div className="flex gap-1">
                         {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => p === 1 || p === totalPages || (p >= currentPage - 1 && p <= currentPage + 1)).map((page, index, array) => {
                                 const prev = array[index - 1];
@@ -345,12 +341,12 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                 return (
                                     <React.Fragment key={page}>
                                         {showEllipsis && <span className="px-1 text-gray-400">...</span>}
-                                        <button onClick={() => handlePageChange(page)} className={`px-3 py-1.5 rounded-sm font-bold ${currentPage === page ? 'bg-del-blue text-white' : 'bg-white border border-gray-200 hover:text-del-blue'}`}>{page}</button>
+                                        <button onClick={() => handlePageScroll(page)} className={`px-3 py-1.5 rounded-sm font-bold ${currentPage === page ? 'bg-del-blue text-white' : 'bg-white border border-gray-200 hover:text-del-blue'}`}>{page}</button>
                                     </React.Fragment>
                                 )
                             })}
                     </div>
-                    <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-1.5 border border-gray-200 bg-gray-50 rounded-sm hover:bg-white hover:text-del-blue disabled:opacity-40 disabled:hover:text-inherit">Next &raquo;</button>
+                    <button onClick={() => handlePageScroll(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-1.5 border border-gray-200 bg-gray-50 rounded-sm hover:bg-white hover:text-del-blue disabled:opacity-40 disabled:hover:text-inherit">Next &raquo;</button>
                 </div>
             )}
             </div>
