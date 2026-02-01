@@ -227,7 +227,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 // Extract hostname for display and favicon
                 const hostname = (() => {
                     try {
-                        return new URL(safeUrl).hostname.replace('www.', '');
+                        return new URL(bm.url).hostname.replace('www.', '');
                     } catch {
                         return '';
                     }
@@ -236,7 +236,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 // Get full hostname for favicon service to be accurate
                 const fullHostname = (() => {
                     try {
-                        return new URL(safeUrl).hostname;
+                        return new URL(bm.url).hostname;
                     } catch {
                         return '';
                     }

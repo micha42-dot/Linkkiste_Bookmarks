@@ -114,9 +114,10 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
 
     const safeTitle = sanitizeInput(title) || safeUrl;
     const safeDescription = sanitizeInput(description);
-    const tagArray = parseTags(tags);
 
     setLoading(true);
+    // Use shared utility
+    const tagArray = parseTags(tags);
 
     await onSave({
       url: safeUrl,
