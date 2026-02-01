@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Bookmark, ViewMode } from '../types';
-import { formatDate, parseDateSafe } from '../utils/helpers';
+import { formatDate, parseDateSafe, sanitizeUrl } from '../utils/helpers';
 
 interface BookmarkListProps {
   bookmarks: Bookmark[];
@@ -222,11 +222,12 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
             {displayedItems.map(bm => {
                 const dateStr = formatDate(bm.created_at);
                 const hasNotes = bm.notes && bm.notes.trim().length > 0;
+                const safeUrl = sanitizeUrl(bm.url);
                 
                 // Extract hostname for display and favicon
                 const hostname = (() => {
                     try {
-                        return new URL(bm.url).hostname.replace('www.', '');
+                        return new URL(safeUrl).hostname.replace('www.', '');
                     } catch {
                         return '';
                     }
@@ -235,7 +236,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 // Get full hostname for favicon service to be accurate
                 const fullHostname = (() => {
                     try {
-                        return new URL(bm.url).hostname;
+                        return new URL(safeUrl).hostname;
                     } catch {
                         return '';
                     }
@@ -246,7 +247,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                     {bm.to_read && <div className="mt-2 w-1.5 h-1.5 bg-del-blue rounded-full flex-shrink-0" title="To Read"></div>}
                     <div className="flex-grow min-w-0">
                         <div className="mb-1 leading-tight">
-                            <a href={bm.url} target="_blank" rel="noopener noreferrer" className="text-[16px] font-bold text-del-blue hover:bg-blue-50 hover:underline px-0.5 -ml-0.5 break-words">
+                            <a href={safeUrl} target="_blank" rel="noopener noreferrer" className="text-[16px] font-bold text-del-blue hover:bg-blue-50 hover:underline px-0.5 -ml-0.5 break-words">
                                 {bm.title}
                             </a>
                         </div>
@@ -379,7 +380,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 <h4 className="font-bold text-xs text-[#f57f17] mb-2 uppercase tracking-wide">On this day</h4>
                 <ul className="space-y-2">
                     {oneYearAgoToday.map(bm => (
-                        <li key={bm.id} className="text-xs leading-tight"><a href={bm.url} target="_blank" className="text-del-blue font-bold hover:underline">{bm.title}</a></li>
+                        <li key={bm.id} className="text-xs leading-tight"><a href={sanitizeUrl(bm.url)} target="_blank" className="text-del-blue font-bold hover:underline">{bm.title}</a></li>
                     ))}
                 </ul>
             </div>

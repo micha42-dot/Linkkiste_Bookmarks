@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NewBookmark } from '../types';
-import { normalizeUrl, parseTags } from '../utils/helpers';
+import { normalizeUrl, parseTags, sanitizeUrl, sanitizeInput } from '../utils/helpers';
 
 interface AddBookmarkProps {
   onSave: (bookmark: NewBookmark) => Promise<void>;
@@ -105,15 +105,23 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
     e.preventDefault();
     if (!url.trim()) return;
 
-    setLoading(true);
-    // Use shared utility
+    // SECURITY: Sanitize Inputs before submitting
+    const safeUrl = sanitizeUrl(url);
+    if (!safeUrl) {
+        alert("Invalid URL. Please check your input.");
+        return;
+    }
+
+    const safeTitle = sanitizeInput(title) || safeUrl;
+    const safeDescription = sanitizeInput(description);
     const tagArray = parseTags(tags);
-    const finalTitle = title.trim() || url;
+
+    setLoading(true);
 
     await onSave({
-      url: url.trim(),
-      title: finalTitle,
-      description,
+      url: safeUrl,
+      title: safeTitle,
+      description: safeDescription,
       tags: tagArray,
       folders: selectedFolders,
       to_read: toRead
