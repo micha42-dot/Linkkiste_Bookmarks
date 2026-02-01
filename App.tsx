@@ -55,7 +55,7 @@ const App: React.FC = () => {
       const url = new URL(window.location.href);
       
       // Reset mutually exclusive permalink keys
-      const keysToReset = ['id', 'tag', 'folder'];
+      const keysToReset = ['id', 'tag', 'folder', 'page'];
       keysToReset.forEach(k => url.searchParams.delete(k));
 
       // Set new params
@@ -85,6 +85,7 @@ const App: React.FC = () => {
     const idParam = params.get('id');
     const tagParam = params.get('tag');
     const folderParam = params.get('folder');
+    const pageParam = params.get('page');
 
     if (modeParam === 'popup') {
         setIsPopupMode(true);
@@ -118,6 +119,9 @@ const App: React.FC = () => {
         // Permalink: Folder
         setFilterFolder(sanitizeInput(folderParam));
         setView('list');
+    } else if (pageParam && ['about', 'terms', 'privacy', 'settings'].includes(pageParam)) {
+        // Permalink: Static Pages
+        setView(pageParam as ViewMode);
     }
 
     // Auth Listeners
@@ -134,6 +138,7 @@ const App: React.FC = () => {
         const pId = p.get('id');
         const pTag = p.get('tag');
         const pFolder = p.get('folder');
+        const pPage = p.get('page');
 
         if (pId) {
             setSelectedBookmarkId(Number(pId));
@@ -146,12 +151,18 @@ const App: React.FC = () => {
             setFilterFolder(pFolder);
             setFilterTag(null);
             setView('list');
+        } else if (pPage) {
+            setView(pPage as ViewMode);
+            setFilterTag(null);
+            setFilterFolder(null);
+            setSelectedBookmarkId(null);
         } else {
             // Reset to root
             setFilterTag(null);
             setFilterFolder(null);
             setSelectedBookmarkId(null);
             if (view === 'detail') setView('list');
+            else setView('list');
         }
     };
     window.addEventListener('popstate', handlePopState);
@@ -372,7 +383,12 @@ const App: React.FC = () => {
           setFilterTag(null);
           setFilterFolder(null);
           setInitialBookmarkData(null);
-          syncUrl({}); // Clear permalinks when switching main tabs
+          
+          if (['about', 'terms', 'privacy', 'settings'].includes(v)) {
+              syncUrl({ page: v });
+          } else {
+              syncUrl({});
+          }
       }}
       searchTerm={searchTerm}
       setSearchTerm={setSearchTerm}
