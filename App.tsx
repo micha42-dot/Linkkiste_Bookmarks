@@ -24,7 +24,8 @@ const App: React.FC = () => {
   
   // UI Preferences
   const [usePagination, setUsePagination] = useState(true);
-  const [paginationResetTrigger, setPaginationResetTrigger] = useState(0);
+  // Pagination State (Lifted from BookmarkList for permalinks)
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Extension / Popup State
   const [isPopupMode, setIsPopupMode] = useState(false);
@@ -49,18 +50,21 @@ const App: React.FC = () => {
   } = useBookmarks(session);
 
   // Helper to sync URL with State (Permalinks)
-  const syncUrl = (params: Record<string, string | null>) => {
-      if (isPopupMode) return; // Don't touch URL in popup mode
+  // resetOthers: if true, clears 'mutually exclusive' view params (like switching from tag to folder)
+  const syncUrl = (params: Record<string, string | null>, resetOthers: boolean = true) => {
+      if (isPopupMode) return; 
       
       const url = new URL(window.location.href);
       
-      // Reset mutually exclusive permalink keys
-      const keysToReset = ['id', 'tag', 'folder', 'page'];
-      keysToReset.forEach(k => url.searchParams.delete(k));
+      if (resetOthers) {
+          // Reset main view params, but also 'p' because new view usually starts at page 1
+          ['id', 'tag', 'folder', 'page', 'p'].forEach(k => url.searchParams.delete(k));
+      }
 
       // Set new params
       Object.entries(params).forEach(([key, value]) => {
           if (value) url.searchParams.set(key, value);
+          else url.searchParams.delete(key);
       });
       
       window.history.pushState({}, '', url);
@@ -75,7 +79,7 @@ const App: React.FC = () => {
         setUsePagination(storedPagination === 'true');
     }
 
-    // 1. Check URL params (Extension support & Permalinks) & SANITIZE THEM
+    // 1. Check URL params
     const params = new URLSearchParams(window.location.search);
     const modeParam = params.get('mode');
     const urlParam = params.get('url');
@@ -85,7 +89,8 @@ const App: React.FC = () => {
     const idParam = params.get('id');
     const tagParam = params.get('tag');
     const folderParam = params.get('folder');
-    const pageParam = params.get('page');
+    const pageParam = params.get('page'); // View page (about, etc)
+    const pParam = params.get('p');       // Pagination page
 
     if (modeParam === 'popup') {
         setIsPopupMode(true);
@@ -93,14 +98,9 @@ const App: React.FC = () => {
     }
 
     if (urlParam) {
-      // Security: Sanitize inputs to prevent XSS via URL
       const cleanUrl = sanitizeUrl(urlParam);
       const cleanTitle = sanitizeInput(titleParam || urlParam);
-
-      setInitialBookmarkData({
-        url: cleanUrl,
-        title: cleanTitle 
-      });
+      setInitialBookmarkData({ url: cleanUrl, title: cleanTitle });
       setView('add');
       
       if (modeParam !== 'popup') {
@@ -108,20 +108,21 @@ const App: React.FC = () => {
           window.history.replaceState({path: newUrl}, '', newUrl);
       }
     } else if (idParam) {
-        // Permalink: Detail View
         setSelectedBookmarkId(Number(idParam));
         setView('detail');
     } else if (tagParam) {
-        // Permalink: Tag
         setFilterTag(sanitizeInput(tagParam));
         setView('list');
     } else if (folderParam) {
-        // Permalink: Folder
         setFilterFolder(sanitizeInput(folderParam));
         setView('list');
     } else if (pageParam && ['about', 'terms', 'privacy', 'settings'].includes(pageParam)) {
-        // Permalink: Static Pages
         setView(pageParam as ViewMode);
+    }
+    
+    // Pagination (modifier for list view)
+    if (pParam) {
+        setCurrentPage(Number(pParam));
     }
 
     // Auth Listeners
@@ -139,6 +140,10 @@ const App: React.FC = () => {
         const pTag = p.get('tag');
         const pFolder = p.get('folder');
         const pPage = p.get('page');
+        const pPageNum = p.get('p');
+
+        // Restore Pagination
+        setCurrentPage(pPageNum ? Number(pPageNum) : 1);
 
         if (pId) {
             setSelectedBookmarkId(Number(pId));
@@ -174,6 +179,15 @@ const App: React.FC = () => {
     };
   }, [isSupabaseConfigured]);
 
+  // Reset pagination when filters or data significantly change
+  // (Mimics the previous useEffect behavior inside BookmarkList)
+  useEffect(() => {
+    // Only reset if we are not reading from URL initially (handled by mount effect)
+    // But this runs on updates. If user clicks a tag, filterTag changes -> reset to page 1.
+    // If user clicks page 2, only currentPage changes -> this effect doesn't run.
+    setCurrentPage(1);
+  }, [filterTag, filterFolder, searchTerm, view, bookmarks.length]);
+
   // PWA/Mobile Lifecycle
   useEffect(() => {
       const handleVisibilityChange = () => {
@@ -202,7 +216,7 @@ const App: React.FC = () => {
       setFilterTag(null);
       setFilterFolder(null);
       setSearchTerm('');
-      setPaginationResetTrigger(prev => prev + 1);
+      setCurrentPage(1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       syncUrl({}); // Clear permalinks
   };
@@ -228,11 +242,7 @@ const App: React.FC = () => {
   const handleArchiveBookmark = async (id: number, url: string) => {
       const baseUrl = localStorage.getItem('linkkiste_archive_base') || 'https://archive.is';
       const archiveUrl = `${baseUrl}/newest/${url}`;
-      
-      // Open service first
       window.open(`${baseUrl}/?run=1&url=${encodeURIComponent(url)}`, '_blank');
-      
-      // Then save DB
       await updateBookmark(id, { archive_url: archiveUrl });
   };
 
@@ -241,7 +251,7 @@ const App: React.FC = () => {
     if (tag) {
         setFilterFolder(null);
         if (['tags','unread','folders','detail'].includes(view)) setView('list');
-        syncUrl({ tag });
+        syncUrl({ tag }); // resetOthers=true by default, clears page/folder
     } else {
         syncUrl({});
     }
@@ -252,10 +262,16 @@ const App: React.FC = () => {
       if (folder) {
           setFilterTag(null);
           setView('list');
-          syncUrl({ folder });
+          syncUrl({ folder }); // resetOthers=true, clears tag/page
       } else {
           syncUrl({});
       }
+  };
+
+  const handlePageChange = (newPage: number) => {
+      setCurrentPage(newPage);
+      // Update URL without clearing other params (like tag/folder)
+      syncUrl({ p: String(newPage) }, false);
   };
 
   const handleViewDetail = (id: number) => {
@@ -292,7 +308,7 @@ const App: React.FC = () => {
   const selectedBookmark = bookmarks.find(b => b.id === selectedBookmarkId);
 
   // --------------------------------------------------------------------------
-  // DB CONFIG CHECK (UNCHANGED UI - RESTORED)
+  // DB CONFIG CHECK
   // --------------------------------------------------------------------------
   if (!isSupabaseConfigured) {
     return (
@@ -416,7 +432,8 @@ const App: React.FC = () => {
             onRefresh={() => fetchBookmarks(true)}
             isRefreshing={isRefreshing}
             usePagination={usePagination}
-            resetTrigger={paginationResetTrigger}
+            currentPage={currentPage}
+            onPageChange={handlePageChange}
           />
           <div className="mt-12 text-center">
               <button 
