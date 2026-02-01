@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { supabase, isSupabaseConfigured } from './services/supabaseClient';
 import { Auth } from './components/Auth';
 import { Layout } from './components/Layout';
@@ -12,6 +12,7 @@ import { NewBookmark, ViewMode } from './types';
 import { Session } from '@supabase/supabase-js';
 import { useBookmarks } from './hooks/useBookmarks';
 import { sanitizeUrl, sanitizeInput } from './utils/helpers';
+import { useDebounce } from './hooks/useDebounce';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
@@ -19,6 +20,10 @@ const App: React.FC = () => {
   const [filterTag, setFilterTag] = useState<string | null>(null);
   const [filterFolder, setFilterFolder] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // PERFORMANCE: Debounce search to avoid lag on large lists
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
   const [showSqlHelp, setShowSqlHelp] = useState(false);
   const [selectedBookmarkId, setSelectedBookmarkId] = useState<number | null>(null);
   
@@ -180,13 +185,9 @@ const App: React.FC = () => {
   }, [isSupabaseConfigured]);
 
   // Reset pagination when filters or data significantly change
-  // (Mimics the previous useEffect behavior inside BookmarkList)
   useEffect(() => {
-    // Only reset if we are not reading from URL initially (handled by mount effect)
-    // But this runs on updates. If user clicks a tag, filterTag changes -> reset to page 1.
-    // If user clicks page 2, only currentPage changes -> this effect doesn't run.
     setCurrentPage(1);
-  }, [filterTag, filterFolder, searchTerm, view, bookmarks.length]);
+  }, [filterTag, filterFolder, debouncedSearchTerm, view, bookmarks.length]);
 
   // PWA/Mobile Lifecycle
   useEffect(() => {
@@ -289,21 +290,25 @@ const App: React.FC = () => {
       }
   }
 
-  // Filtering Logic
-  const displayedBookmarks = bookmarks.filter(b => {
-      const matchesView = view === 'unread' ? b.to_read : true;
-      const matchesTag = filterTag ? (b.tags && b.tags.includes(filterTag)) : true;
-      const matchesFolder = filterFolder ? (b.folders && b.folders.includes(filterFolder)) : true;
-      const term = searchTerm.toLowerCase();
-      const matchesSearch = !term || 
-        b.title.toLowerCase().includes(term) || 
-        b.url.toLowerCase().includes(term) ||
-        (b.description && b.description.toLowerCase().includes(term)) ||
-        (b.tags && b.tags.some(t => t.toLowerCase().includes(term))) ||
-        (b.folders && b.folders.some(f => f.toLowerCase().includes(term)));
+  // Filtering Logic - MEMOIZED and using DEBOUNCE
+  const displayedBookmarks = useMemo(() => {
+      const term = debouncedSearchTerm.toLowerCase();
       
-      return matchesView && matchesTag && matchesFolder && matchesSearch;
-  });
+      return bookmarks.filter(b => {
+          const matchesView = view === 'unread' ? b.to_read : true;
+          const matchesTag = filterTag ? (b.tags && b.tags.includes(filterTag)) : true;
+          const matchesFolder = filterFolder ? (b.folders && b.folders.includes(filterFolder)) : true;
+          
+          const matchesSearch = !term || 
+            b.title.toLowerCase().includes(term) || 
+            b.url.toLowerCase().includes(term) ||
+            (b.description && b.description.toLowerCase().includes(term)) ||
+            (b.tags && b.tags.some(t => t.toLowerCase().includes(term))) ||
+            (b.folders && b.folders.some(f => f.toLowerCase().includes(term)));
+          
+          return matchesView && matchesTag && matchesFolder && matchesSearch;
+      });
+  }, [bookmarks, view, filterTag, filterFolder, debouncedSearchTerm]);
 
   const selectedBookmark = bookmarks.find(b => b.id === selectedBookmarkId);
 
