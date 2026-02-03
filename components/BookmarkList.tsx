@@ -7,6 +7,8 @@ interface BookmarkListProps {
   onDelete: (id: number) => void;
   onToggleRead: (id: number, currentStatus: boolean) => void;
   onArchive: (id: number, url: string) => void;
+  onSaveNotes: (id: number, notes: string) => Promise<void>;
+  onUpdate: (id: number, data: Partial<Bookmark>) => Promise<void>;
   filterTag: string | null;
   setFilterTag: (tag: string | null) => void;
   filterFolder: string | null;
@@ -31,6 +33,8 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
   onDelete, 
   onToggleRead,
   onArchive,
+  onSaveNotes,
+  onUpdate,
   filterTag, 
   setFilterTag,
   filterFolder, 
@@ -49,10 +53,16 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
   currentPage,
   onPageChange
 }) => {
-  const [addingFolderToId, setAddingFolderToId] = useState<number | null>(null);
-  const [newFolderName, setNewFolderName] = useState('');
-  // State for the Note Drawer
+  // State for the Note Drawer and Inline Editing
   const [expandedNoteId, setExpandedNoteId] = useState<number | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
+  const [tempNoteText, setTempNoteText] = useState('');
+  const [isSavingNote, setIsSavingNote] = useState(false);
+
+  // State for Tags/Folders Drawer
+  const [editingTagsFoldersId, setEditingTagsFoldersId] = useState<number | null>(null);
+  const [tagInput, setTagInput] = useState('');
+  const [folderInput, setFolderInput] = useState('');
   
   const itemsPerPage = 20;
 
@@ -77,14 +87,13 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
 
   const maxTagCount = allTags.length > 0 ? allTags[0][1] : 1;
 
-  // "Heute vor einem Jahr" Logic - Safari Safe via parseDateSafe
+  // "Heute vor einem Jahr" Logic
   const oneYearAgoToday = useMemo(() => {
     const now = new Date();
     return bookmarks.filter(b => {
         const d = parseDateSafe(b.created_at);
         if (!d) return false;
         
-        // Match day and month, but from any previous year
         return d.getDate() === now.getDate() && 
                d.getMonth() === now.getMonth() && 
                d.getFullYear() < now.getFullYear();
@@ -97,10 +106,9 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
   // PAGINATION LOGIC
   const totalPages = Math.ceil(bookmarks.length / itemsPerPage);
   
-  // Decide which items to show based on settings
   const displayedItems = useMemo(() => {
       if (!usePagination) {
-          return bookmarks; // Show all (endless list)
+          return bookmarks; 
       }
       const startIndex = (currentPage - 1) * itemsPerPage;
       return bookmarks.slice(startIndex, startIndex + itemsPerPage);
@@ -113,7 +121,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
   };
 
   const handleDeleteFolderWrapper = (folder: string) => {
-      if (window.confirm(`Möchtest du den Ordner "${folder}" wirklich löschen? Die Bookmarks bleiben erhalten, aber die Verknüpfung zu diesem Ordner wird entfernt.`)) {
+      if (window.confirm(`Möchtest du den Ordner "${folder}" wirklich löschen?`)) {
           onDeleteFolder(folder);
       }
   };
@@ -124,23 +132,80 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
     }
   };
 
-  const handleStartAddFolder = (id: number) => {
-      setAddingFolderToId(id);
-      setNewFolderName('');
-  };
-
-  const submitAddFolder = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (addingFolderToId && newFolderName.trim()) {
-          onAddFolder(addingFolderToId, newFolderName.trim());
-          setAddingFolderToId(null);
-          setNewFolderName('');
-      }
-  };
-
   const handlePageScroll = (newPage: number) => {
       onPageChange(newPage);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Note Handling
+  const handleToggleNoteDrawer = (id: number) => {
+      if (expandedNoteId === id) {
+          setExpandedNoteId(null);
+          setEditingNoteId(null);
+      } else {
+          setExpandedNoteId(id);
+          setEditingTagsFoldersId(null); // Close other drawer
+          setEditingNoteId(null);
+      }
+  };
+
+  const handleStartEditNote = (bm: Bookmark) => {
+      setExpandedNoteId(bm.id);
+      setEditingTagsFoldersId(null); // Close other drawer
+      setEditingNoteId(bm.id);
+      setTempNoteText(bm.notes || '');
+  };
+
+  const handleSaveNote = async (id: number) => {
+      setIsSavingNote(true);
+      await onSaveNotes(id, tempNoteText);
+      setIsSavingNote(false);
+      setEditingNoteId(null);
+  };
+
+  const handleCancelEditNote = () => {
+      setEditingNoteId(null);
+  };
+
+  // Tags & Folders Drawer Logic
+  const handleToggleTagsFoldersDrawer = (id: number) => {
+      if (editingTagsFoldersId === id) {
+          setEditingTagsFoldersId(null);
+      } else {
+          setEditingTagsFoldersId(id);
+          setExpandedNoteId(null); // Close note drawer
+          setTagInput('');
+          setFolderInput('');
+      }
+  };
+
+  const handleAddTag = async (bm: Bookmark) => {
+      const tagToAdd = tagInput.trim().toLowerCase();
+      if (!tagToAdd) return;
+      
+      const currentTags = bm.tags || [];
+      if (!currentTags.includes(tagToAdd)) {
+          const newTags = [...currentTags, tagToAdd];
+          await onUpdate(bm.id, { tags: newTags });
+      }
+      setTagInput('');
+  };
+
+  const handleRemoveTag = async (bm: Bookmark, tagToRemove: string) => {
+      const currentTags = bm.tags || [];
+      const newTags = currentTags.filter(t => t !== tagToRemove);
+      await onUpdate(bm.id, { tags: newTags });
+  };
+
+  const handleAddFolderInline = (bmId: number) => {
+      const folderToAdd = folderInput.trim();
+      if (!folderToAdd) return;
+      onAddFolder(bmId, folderToAdd);
+      setFolderInput('');
+  };
+
+  const handleRemoveFolderInline = (bmId: number, folderToRemove: string) => {
+      onRemoveFolderFromBookmark(bmId, folderToRemove);
   };
 
   if (loading) {
@@ -225,23 +290,15 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 const hasNotes = bm.notes && bm.notes.trim().length > 0;
                 const safeUrl = sanitizeUrl(bm.url);
                 const isNoteExpanded = expandedNoteId === bm.id;
+                const isEditing = editingNoteId === bm.id;
+                const isEditingTagsFolders = editingTagsFoldersId === bm.id;
                 
-                // Extract hostname for display and favicon
                 const hostname = (() => {
-                    try {
-                        return new URL(bm.url).hostname.replace('www.', '');
-                    } catch {
-                        return '';
-                    }
+                    try { return new URL(bm.url).hostname.replace('www.', ''); } catch { return ''; }
                 })();
                 
-                // Get full hostname for favicon service to be accurate
                 const fullHostname = (() => {
-                    try {
-                        return new URL(bm.url).hostname;
-                    } catch {
-                        return '';
-                    }
+                    try { return new URL(bm.url).hostname; } catch { return ''; }
                 })();
 
                 return (
@@ -261,7 +318,6 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                         )}
                         
                         <div className="flex flex-wrap items-center gap-y-2 gap-x-2 text-xs">
-                             {/* Source info (Icon + Domain) followed by pipe */}
                              <div className="flex items-center gap-1.5">
                                  <img 
                                     src={`https://www.google.com/s2/favicons?domain=${fullHostname}&sz=32`} 
@@ -292,14 +348,6 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                         <button onClick={() => handleRemoveFromFolder(bm.id, folder)} className="ml-1 text-[9px] text-gray-300 hover:text-red-500 hover:font-bold opacity-50 group-hover/folder:opacity-100 transition-opacity px-0.5" title={`Remove link from folder "${folder}"`}>x</button>
                                     </div>
                                 ))}
-                                
-                                {addingFolderToId === bm.id && (
-                                    <form onSubmit={submitAddFolder} className="flex items-center gap-1">
-                                        <input type="text" autoFocus className="text-[10px] border border-del-blue px-1 py-0.5 w-20 outline-none" placeholder="Folder name" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} onBlur={() => !newFolderName && setAddingFolderToId(null)} />
-                                        <button type="submit" className="text-[9px] bg-del-blue text-white px-1.5 py-0.5 rounded-sm">ok</button>
-                                        <button type="button" onClick={() => setAddingFolderToId(null)} className="text-[9px] text-gray-400 px-1">x</button>
-                                    </form>
-                                )}
                             </div>
                             
                             {bm.archive_url && (
@@ -309,7 +357,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                 <button 
                                     onClick={(e) => {
                                         e.preventDefault();
-                                        setExpandedNoteId(isNoteExpanded ? null : bm.id);
+                                        handleToggleNoteDrawer(bm.id);
                                     }}
                                     className={`text-[10px] px-1.5 border rounded-sm transition-colors ${isNoteExpanded ? 'bg-yellow-100 border-yellow-300 text-yellow-800 font-bold' : 'text-gray-400 bg-yellow-50 border-yellow-100 hover:border-yellow-300 hover:text-yellow-600 cursor-pointer'}`}
                                     title="Click to view notes"
@@ -334,21 +382,123 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                         <button onClick={() => handleRemoveFromFolder(bm.id, filterFolder)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase whitespace-nowrap">remove from folder</button>
                                     </>
                                 )}
+                                {!hasNotes && (
+                                  <>
+                                    <span className="text-gray-200 hidden md:inline">|</span>
+                                    <button onClick={() => handleStartEditNote(bm)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase">add note</button>
+                                  </>
+                                )}
                                 <span className="text-gray-200 hidden md:inline">|</span>
-                                <button onClick={() => handleStartAddFolder(bm.id)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase">add to folder</button>
+                                <button onClick={() => handleToggleTagsFoldersDrawer(bm.id)} className={`text-[10px] md:text-[9px] font-bold uppercase ${isEditingTagsFolders ? 'text-black bg-gray-100 px-1 rounded-sm' : 'text-gray-400 hover:text-del-blue'}`}>edit tags / folders</button>
                                 <span className="text-gray-200 hidden md:inline">|</span>
                                 <button onClick={() => handleDelete(bm.id, bm.title)} className="text-gray-400 hover:text-red-500 text-[10px] md:text-[9px] font-bold uppercase">delete</button>
                             </div>
                         </div>
 
                         {/* Note Drawer */}
-                        {isNoteExpanded && bm.notes && (
-                           <div className="mt-3 p-4 bg-[#fffff8] border border-yellow-200 rounded-sm shadow-sm relative text-sm">
-                               <div className="absolute top-0 left-0 w-1 h-full bg-yellow-300 rounded-l-sm"></div>
-                               <div className="pl-2 font-serif text-gray-800 whitespace-pre-wrap leading-relaxed">
-                                   {bm.notes}
-                               </div>
+                        {isNoteExpanded && (
+                           <div className="mt-3 bg-[#fffff8] border border-yellow-200 p-4 rounded-sm shadow-sm text-sm">
+                               <h4 className="font-bold text-[10px] text-yellow-700 uppercase tracking-widest mb-1">Personal Notes</h4>
+                               <div className="border-b border-yellow-100 mb-3"></div>
+                               
+                               {isEditing ? (
+                                   <div className="space-y-3">
+                                       <textarea 
+                                          value={tempNoteText} 
+                                          onChange={(e) => setTempNoteText(e.target.value)} 
+                                          className="w-full h-32 p-2 text-sm bg-white border border-yellow-300 outline-none focus:ring-1 focus:ring-yellow-400 font-serif resize-y text-gray-800"
+                                          placeholder="Type your notes here..."
+                                          autoFocus
+                                       />
+                                       <div className="flex justify-end gap-2">
+                                           <button onClick={() => handleSaveNote(bm.id)} disabled={isSavingNote} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border border-yellow-300 text-[10px] font-bold uppercase px-3 py-1.5 rounded-sm transition-colors">
+                                               {isSavingNote ? 'Saving...' : 'Save Notes'}
+                                           </button>
+                                           <button onClick={handleCancelEditNote} className="text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase px-2">
+                                               Cancel
+                                           </button>
+                                       </div>
+                                   </div>
+                               ) : (
+                                   <>
+                                        <div className="font-serif text-gray-800 whitespace-pre-wrap leading-relaxed mb-4 pl-1">
+                                            {bm.notes}
+                                        </div>
+                                        <div className="flex justify-end gap-3 border-t border-yellow-100 pt-2">
+                                            <button onClick={() => handleStartEditNote(bm)} className="text-[10px] font-bold text-yellow-600 hover:text-yellow-800 uppercase tracking-wide">
+                                                Edit Notes
+                                            </button>
+                                            <button onClick={() => handleToggleNoteDrawer(bm.id)} className="bg-[#fcfcf0] hover:bg-yellow-50 text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase px-2 py-1 rounded-sm">
+                                                Close
+                                            </button>
+                                        </div>
+                                   </>
+                               )}
                            </div>
+                        )}
+
+                        {/* Tags / Folders Editor Drawer */}
+                        {isEditingTagsFolders && (
+                            <div className="mt-3 bg-gray-50 border border-gray-200 p-4 rounded-sm shadow-sm text-sm">
+                                <div className="flex flex-col md:flex-row gap-6">
+                                    {/* Folders Column */}
+                                    <div className="flex-1">
+                                        <h4 className="font-bold text-[10px] text-gray-500 uppercase tracking-widest mb-2">Folders</h4>
+                                        <div className="flex flex-wrap gap-1 mb-3 min-h-[24px]">
+                                            {bm.folders && bm.folders.map(folder => (
+                                                <span key={folder} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-sm">
+                                                    📁 {folder}
+                                                    <button onClick={() => handleRemoveFolderInline(bm.id, folder)} className="hover:text-red-600 font-bold ml-1">×</button>
+                                                </span>
+                                            ))}
+                                            {(!bm.folders || bm.folders.length === 0) && <span className="text-[10px] text-gray-400 italic">No folders</span>}
+                                        </div>
+                                        <div className="flex gap-1">
+                                            <input 
+                                                list={`folder-list-${bm.id}`}
+                                                type="text" 
+                                                className="border border-gray-300 p-1 text-xs w-full rounded-sm outline-none focus:border-del-blue" 
+                                                placeholder="New folder..." 
+                                                value={folderInput}
+                                                onChange={(e) => setFolderInput(e.target.value)}
+                                            />
+                                            <datalist id={`folder-list-${bm.id}`}>
+                                                {allFolders.map(f => <option key={f} value={f} />)}
+                                            </datalist>
+                                            <button onClick={() => handleAddFolderInline(bm.id)} className="bg-white border border-gray-300 text-gray-600 text-[10px] font-bold px-2 rounded-sm hover:bg-gray-100">ADD</button>
+                                        </div>
+                                    </div>
+
+                                    {/* Tags Column */}
+                                    <div className="flex-1 border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6">
+                                        <h4 className="font-bold text-[10px] text-gray-500 uppercase tracking-widest mb-2">Tags</h4>
+                                        <div className="flex flex-wrap gap-1 mb-3 min-h-[24px]">
+                                            {bm.tags && bm.tags.map(tag => (
+                                                <span key={tag} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-blue-50 text-del-blue border border-blue-200 rounded-sm">
+                                                    {tag}
+                                                    <button onClick={() => handleRemoveTag(bm, tag)} className="hover:text-red-600 font-bold ml-1">×</button>
+                                                </span>
+                                            ))}
+                                            {(!bm.tags || bm.tags.length === 0) && <span className="text-[10px] text-gray-400 italic">No tags</span>}
+                                        </div>
+                                        <div className="flex gap-1">
+                                            <input 
+                                                type="text" 
+                                                className="border border-gray-300 p-1 text-xs w-full rounded-sm outline-none focus:border-del-blue" 
+                                                placeholder="Add tag..." 
+                                                value={tagInput}
+                                                onChange={(e) => setTagInput(e.target.value)}
+                                            />
+                                            <button onClick={() => handleAddTag(bm)} className="bg-del-blue text-white border border-del-blue text-[10px] font-bold px-2 rounded-sm hover:bg-del-dark-blue">ADD</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex justify-end mt-4 pt-2 border-t border-gray-200">
+                                    <button onClick={() => handleToggleTagsFoldersDrawer(bm.id)} className="text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase px-2 py-1 border border-gray-200 bg-white rounded-sm hover:bg-gray-50">
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
                         )}
                     </div>
                 </div>
