@@ -150,10 +150,17 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
   };
 
   const handleStartEditNote = (bm: Bookmark) => {
-      setExpandedNoteId(bm.id);
-      setEditingTagsFoldersId(null); // Close other drawer
-      setEditingNoteId(bm.id);
-      setTempNoteText(bm.notes || '');
+      if (expandedNoteId === bm.id) {
+          // Toggle off if already open
+          setExpandedNoteId(null);
+          setEditingNoteId(null);
+      } else {
+          // Open
+          setExpandedNoteId(bm.id);
+          setEditingTagsFoldersId(null); // Close other drawer
+          setEditingNoteId(bm.id);
+          setTempNoteText(bm.notes || '');
+      }
   };
 
   const handleSaveNote = async (id: number) => {
@@ -163,8 +170,15 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
       setEditingNoteId(null);
   };
 
-  const handleCancelEditNote = () => {
-      setEditingNoteId(null);
+  const handleCancelEditNote = (bm: Bookmark) => {
+      // If we are cancelling an edit, and there were no previous notes, 
+      // we should close the drawer completely to avoid showing an empty view state.
+      if (!bm.notes || bm.notes.trim() === '') {
+          setExpandedNoteId(null);
+          setEditingNoteId(null);
+      } else {
+          setEditingNoteId(null);
+      }
   };
 
   // Tags & Folders Drawer Logic
@@ -385,7 +399,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                 {!hasNotes && (
                                   <>
                                     <span className="text-gray-200 hidden md:inline">|</span>
-                                    <button onClick={() => handleStartEditNote(bm)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase">add note</button>
+                                    <button onClick={() => handleStartEditNote(bm)} className={`text-[10px] md:text-[9px] font-bold uppercase ${isEditing ? 'text-black bg-gray-100 px-1 rounded-sm' : 'text-gray-400 hover:text-del-blue'}`}>add note</button>
                                   </>
                                 )}
                                 <span className="text-gray-200 hidden md:inline">|</span>
@@ -414,7 +428,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                            <button onClick={() => handleSaveNote(bm.id)} disabled={isSavingNote} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border border-yellow-300 text-[10px] font-bold uppercase px-3 py-1.5 rounded-sm transition-colors">
                                                {isSavingNote ? 'Saving...' : 'Save Notes'}
                                            </button>
-                                           <button onClick={handleCancelEditNote} className="text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase px-2">
+                                           <button onClick={() => handleCancelEditNote(bm)} className="text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase px-2">
                                                Cancel
                                            </button>
                                        </div>
