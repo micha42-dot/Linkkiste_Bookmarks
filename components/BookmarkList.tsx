@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Bookmark, ViewMode } from '../types';
 import { formatDate, parseDateSafe, sanitizeUrl } from '../utils/helpers';
 
@@ -22,7 +22,6 @@ interface BookmarkListProps {
   onRefresh?: () => void;
   isRefreshing?: boolean;
   usePagination?: boolean;
-  // Props for lifted state pagination
   currentPage: number;
   onPageChange: (page: number) => void;
 }
@@ -50,8 +49,10 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
   currentPage,
   onPageChange
 }) => {
-  const [addingFolderToId, setAddingFolderToId] = React.useState<number | null>(null);
-  const [newFolderName, setNewFolderName] = React.useState('');
+  const [addingFolderToId, setAddingFolderToId] = useState<number | null>(null);
+  const [newFolderName, setNewFolderName] = useState('');
+  // State for the Note Drawer
+  const [expandedNoteId, setExpandedNoteId] = useState<number | null>(null);
   
   const itemsPerPage = 20;
 
@@ -223,6 +224,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 const dateStr = formatDate(bm.created_at);
                 const hasNotes = bm.notes && bm.notes.trim().length > 0;
                 const safeUrl = sanitizeUrl(bm.url);
+                const isNoteExpanded = expandedNoteId === bm.id;
                 
                 // Extract hostname for display and favicon
                 const hostname = (() => {
@@ -303,7 +305,18 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                             {bm.archive_url && (
                                  <a href={bm.archive_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-green-600 bg-green-50 px-1 border border-green-100 rounded-sm mr-2 hover:underline decoration-green-300 flex items-center gap-1" title="View archived version"><span>🏛️</span> archived</a>
                             )}
-                            {hasNotes && <span className="text-[10px] text-gray-400 bg-yellow-50 px-1 border border-yellow-100 rounded-sm">📝 has notes</span>}
+                            {hasNotes && (
+                                <button 
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        setExpandedNoteId(isNoteExpanded ? null : bm.id);
+                                    }}
+                                    className={`text-[10px] px-1.5 border rounded-sm transition-colors ${isNoteExpanded ? 'bg-yellow-100 border-yellow-300 text-yellow-800 font-bold' : 'text-gray-400 bg-yellow-50 border-yellow-100 hover:border-yellow-300 hover:text-yellow-600 cursor-pointer'}`}
+                                    title="Click to view notes"
+                                >
+                                    📝 {isNoteExpanded ? 'hide notes' : 'has notes'}
+                                </button>
+                            )}
                             
                             <div className="flex flex-wrap items-center gap-3 md:gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity w-full md:w-auto mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0 border-gray-100">
                                 <button onClick={() => onToggleRead(bm.id, bm.to_read)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase">{bm.to_read ? 'mark read' : 'save later'}</button>
@@ -327,6 +340,16 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                 <button onClick={() => handleDelete(bm.id, bm.title)} className="text-gray-400 hover:text-red-500 text-[10px] md:text-[9px] font-bold uppercase">delete</button>
                             </div>
                         </div>
+
+                        {/* Note Drawer */}
+                        {isNoteExpanded && bm.notes && (
+                           <div className="mt-3 p-4 bg-[#fffff8] border border-yellow-200 rounded-sm shadow-sm relative text-sm">
+                               <div className="absolute top-0 left-0 w-1 h-full bg-yellow-300 rounded-l-sm"></div>
+                               <div className="pl-2 font-serif text-gray-800 whitespace-pre-wrap leading-relaxed">
+                                   {bm.notes}
+                               </div>
+                           </div>
+                        )}
                     </div>
                 </div>
                 )
