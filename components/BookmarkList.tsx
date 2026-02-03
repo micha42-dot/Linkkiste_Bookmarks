@@ -463,7 +463,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                                 onChange={(e) => setFolderInput(e.target.value)}
                                             />
                                             <datalist id={`folder-list-${bm.id}`}>
-                                                {allFolders.map(f => <option key={f} value={f} />)}
+                                                {allFolders.map(([folderName]) => <option key={folderName} value={folderName} />)}
                                             </datalist>
                                             <button onClick={() => handleAddFolderInline(bm.id)} className="bg-white border border-gray-300 text-gray-600 text-[10px] font-bold px-2 rounded-sm hover:bg-gray-100">ADD</button>
                                         </div>
