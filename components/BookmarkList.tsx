@@ -45,7 +45,6 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
   onViewDetail,
   loading,
   viewMode,
-  userEmail,
   onAddClick,
   onRefresh,
   isRefreshing = false,
@@ -53,18 +52,22 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
   currentPage,
   onPageChange
 }) => {
-  // State for the Note Drawer and Inline Editing
+  // --- STATE MANAGEMENT ---
+  
+  // Note Drawer & Inline Editing
   const [expandedNoteId, setExpandedNoteId] = useState<number | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [tempNoteText, setTempNoteText] = useState('');
   const [isSavingNote, setIsSavingNote] = useState(false);
 
-  // State for Tags/Folders Drawer
+  // Tags/Folders Drawer
   const [editingTagsFoldersId, setEditingTagsFoldersId] = useState<number | null>(null);
   const [tagInput, setTagInput] = useState('');
   const [folderInput, setFolderInput] = useState('');
   
   const itemsPerPage = 20;
+
+  // --- MEMOIZED DATA CALCULATIONS ---
 
   const allTags = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -72,6 +75,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
       counts[tag] = (counts[tag] || 0) + 1;
     });
     return Object.entries(counts).sort((a, b) => {
+        // Sort by count desc, then alpha asc
         if (b[1] !== a[1]) return b[1] - a[1];
         return a[0].localeCompare(b[0]);
     });
@@ -85,9 +89,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
     return Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0]));
   }, [bookmarks]);
 
-  const maxTagCount = allTags.length > 0 ? allTags[0][1] : 1;
-
-  // "Heute vor einem Jahr" Logic
+  // "On this day" Logic
   const oneYearAgoToday = useMemo(() => {
     const now = new Date();
     return bookmarks.filter(b => {
@@ -103,7 +105,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
   const topTags = allTags.slice(0, 40);
   const unreadCount = bookmarks.filter(b => b.to_read).length;
 
-  // PAGINATION LOGIC
+  // --- PAGINATION ---
   const totalPages = Math.ceil(bookmarks.length / itemsPerPage);
   
   const displayedItems = useMemo(() => {
@@ -112,7 +114,9 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
       }
       const startIndex = (currentPage - 1) * itemsPerPage;
       return bookmarks.slice(startIndex, startIndex + itemsPerPage);
-  }, [bookmarks, currentPage, usePagination]);
+  }, [bookmarks, currentPage, usePagination, itemsPerPage]);
+
+  // --- HANDLERS: GENERAL ---
 
   const handleDelete = (id: number, title: string) => {
     if (window.confirm(`Möchtest du den Link "${title}" wirklich löschen?`)) {
@@ -137,11 +141,14 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
       window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Note Handling
+  // --- HANDLERS: NOTES DRAWER ---
+
+  // Just toggles the view (read-only)
   const handleToggleNoteDrawer = (id: number) => {
       if (expandedNoteId === id) {
           setExpandedNoteId(null);
           setEditingNoteId(null);
+          setTempNoteText('');
       } else {
           setExpandedNoteId(id);
           setEditingTagsFoldersId(null); // Close other drawer
@@ -149,11 +156,13 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
       }
   };
 
+  // Used by the outer "Add Note" button (Toggle behavior)
   const handleStartEditNote = (bm: Bookmark) => {
       if (expandedNoteId === bm.id) {
           // Toggle off if already open
           setExpandedNoteId(null);
           setEditingNoteId(null);
+          setTempNoteText('');
       } else {
           // Open
           setExpandedNoteId(bm.id);
@@ -163,25 +172,36 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
       }
   };
 
+  // Used by the internal "Edit Notes" button (Force Edit, no toggle close)
+  const handleSwitchToEditMode = (bm: Bookmark) => {
+      setExpandedNoteId(bm.id);
+      setEditingTagsFoldersId(null); 
+      setEditingNoteId(bm.id);
+      setTempNoteText(bm.notes || '');
+  };
+
   const handleSaveNote = async (id: number) => {
       setIsSavingNote(true);
       await onSaveNotes(id, tempNoteText);
       setIsSavingNote(false);
       setEditingNoteId(null);
+      // We keep expandedNoteId set so it stays open in read mode
   };
 
   const handleCancelEditNote = (bm: Bookmark) => {
-      // If we are cancelling an edit, and there were no previous notes, 
-      // we should close the drawer completely to avoid showing an empty view state.
+      // If note was empty to begin with, close the whole drawer
       if (!bm.notes || bm.notes.trim() === '') {
           setExpandedNoteId(null);
           setEditingNoteId(null);
       } else {
+          // Otherwise just revert to read-only mode
           setEditingNoteId(null);
       }
+      setTempNoteText('');
   };
 
-  // Tags & Folders Drawer Logic
+  // --- HANDLERS: TAGS/FOLDERS DRAWER ---
+
   const handleToggleTagsFoldersDrawer = (id: number) => {
       if (editingTagsFoldersId === id) {
           setEditingTagsFoldersId(null);
@@ -222,6 +242,8 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
       onRemoveFolderFromBookmark(bmId, folderToRemove);
   };
 
+  // --- RENDER ---
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-20">
@@ -233,6 +255,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
   return (
     <div className="flex flex-col md:flex-row gap-12">
       <div className="flex-1 min-w-0">
+        {/* Active Filters Display */}
         {filterTag && (
           <div className="mb-6 bg-[#f9f9f9] border border-[#ddd] p-3 flex items-center justify-between text-sm shadow-sm">
             <span>Bookmarks tagged with <span className="font-bold text-black px-1.5 py-0.5 bg-[#eee] rounded-sm">"{filterTag}"</span></span>
@@ -254,6 +277,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
           </div>
         )}
 
+        {/* View Modes */}
         {viewMode === 'tags' ? (
              <div className="mt-4">
                 <h3 className="font-bold text-xl mb-6 text-gray-800 border-b border-gray-200 pb-2">All Tags</h3>
@@ -307,44 +331,51 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 const isEditing = editingNoteId === bm.id;
                 const isEditingTagsFolders = editingTagsFoldersId === bm.id;
                 
-                const hostname = (() => {
-                    try { return new URL(bm.url).hostname.replace('www.', ''); } catch { return ''; }
-                })();
-                
-                const fullHostname = (() => {
-                    try { return new URL(bm.url).hostname; } catch { return ''; }
-                })();
+                // Optimized URL parsing
+                let hostname = '';
+                let fullHostname = '';
+                try {
+                    const u = new URL(bm.url);
+                    fullHostname = u.hostname;
+                    hostname = fullHostname.replace('www.', '');
+                } catch { /* invalid url */ }
 
                 return (
                 <div key={bm.id} className="pb-4 border-b border-[#eeeeee] group flex gap-3">
                     {bm.to_read && <div className="mt-2 w-1.5 h-1.5 bg-del-blue rounded-full flex-shrink-0" title="To Read"></div>}
                     <div className="flex-grow min-w-0">
+                        {/* Title Row */}
                         <div className="mb-1 leading-tight">
                             <a href={safeUrl} target="_blank" rel="noopener noreferrer" className="text-[16px] font-bold text-del-blue hover:bg-blue-50 hover:underline px-0.5 -ml-0.5 break-words">
                                 {bm.title}
                             </a>
                         </div>
                         
+                        {/* Description */}
                         {bm.description && (
                             <div className="text-[#444] text-[13px] mb-2 leading-snug break-words">
                                 {bm.description}
                             </div>
                         )}
                         
+                        {/* Meta Row */}
                         <div className="flex flex-wrap items-center gap-y-2 gap-x-2 text-xs">
                              <div className="flex items-center gap-1.5">
-                                 <img 
-                                    src={`https://www.google.com/s2/favicons?domain=${fullHostname}&sz=32`} 
-                                    alt="" 
-                                    className="w-3 h-3"
-                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                 />
+                                 {fullHostname && (
+                                     <img 
+                                        src={`https://www.google.com/s2/favicons?domain=${fullHostname}&sz=32`} 
+                                        alt="" 
+                                        className="w-3 h-3"
+                                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                     />
+                                 )}
                                  <span className="text-[10px] font-bold text-gray-400">{hostname}</span>
                             </div>
                             <span className="text-gray-300 text-[10px]">|</span>
 
                             <span className="text-[#999] text-[11px] whitespace-nowrap mr-2">on {dateStr}</span>
 
+                            {/* Tags */}
                             {bm.tags && bm.tags.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mr-2">
                                     {bm.tags.map(tag => (
@@ -355,6 +386,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                 </div>
                             )}
 
+                             {/* Folders */}
                              <div className="flex flex-wrap gap-1 mr-2 items-center">
                                 {bm.folders && bm.folders.map(folder => (
                                     <div key={folder} className="group/folder flex items-center gap-0 bg-gray-50 border border-transparent hover:border-gray-200 rounded px-1 transition-colors">
@@ -367,6 +399,8 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                             {bm.archive_url && (
                                  <a href={bm.archive_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-green-600 bg-green-50 px-1 border border-green-100 rounded-sm mr-2 hover:underline decoration-green-300 flex items-center gap-1" title="View archived version"><span>🏛️</span> archived</a>
                             )}
+                            
+                            {/* Notes Indicator */}
                             {hasNotes && (
                                 <button 
                                     onClick={(e) => {
@@ -380,6 +414,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                 </button>
                             )}
                             
+                            {/* Action Buttons (Hover) */}
                             <div className="flex flex-wrap items-center gap-3 md:gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity w-full md:w-auto mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0 border-gray-100">
                                 <button onClick={() => onToggleRead(bm.id, bm.to_read)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase">{bm.to_read ? 'mark read' : 'save later'}</button>
                                 <span className="text-gray-200 hidden md:inline">|</span>
@@ -439,7 +474,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                             {bm.notes}
                                         </div>
                                         <div className="flex justify-end gap-3 border-t border-yellow-100 pt-2">
-                                            <button onClick={() => handleStartEditNote(bm)} className="text-[10px] font-bold text-yellow-600 hover:text-yellow-800 uppercase tracking-wide">
+                                            <button onClick={() => handleSwitchToEditMode(bm)} className="text-[10px] font-bold text-yellow-600 hover:text-yellow-800 uppercase tracking-wide">
                                                 Edit Notes
                                             </button>
                                             <button onClick={() => handleToggleNoteDrawer(bm.id)} className="bg-[#fcfcf0] hover:bg-yellow-50 text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase px-2 py-1 rounded-sm">
@@ -475,6 +510,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                                 placeholder="New folder..." 
                                                 value={folderInput}
                                                 onChange={(e) => setFolderInput(e.target.value)}
+                                                onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); handleAddFolderInline(bm.id); } }}
                                             />
                                             <datalist id={`folder-list-${bm.id}`}>
                                                 {allFolders.map(([folderName]) => <option key={folderName} value={folderName} />)}
@@ -502,6 +538,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                                 placeholder="Add tag..." 
                                                 value={tagInput}
                                                 onChange={(e) => setTagInput(e.target.value)}
+                                                onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); handleAddTag(bm); } }}
                                             />
                                             <button onClick={() => handleAddTag(bm)} className="bg-del-blue text-white border border-del-blue text-[10px] font-bold px-2 rounded-sm hover:bg-del-dark-blue">ADD</button>
                                         </div>
@@ -519,6 +556,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 )
             })}
             
+            {/* Pagination Controls */}
             {usePagination && totalPages > 1 && (
                 <div className="mt-8 flex justify-center items-center gap-2 text-xs">
                     <button onClick={() => handlePageScroll(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1.5 border border-gray-200 bg-gray-50 rounded-sm hover:bg-white hover:text-del-blue disabled:opacity-40 disabled:hover:text-inherit">&laquo; Prev</button>
@@ -540,6 +578,8 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
             </div>
         )}
       </div>
+
+      {/* Sidebar / Navigation */}
       <div className="w-full md:w-56 flex-shrink-0 pl-0 md:pl-6 border-l-0 md:border-l border-gray-100 mt-8 md:mt-0">
          <div className="mb-8">
             <h4 className="font-bold text-xs text-white bg-[#86c944] mb-3 uppercase tracking-wide p-2 rounded-sm">Navigation</h4>
