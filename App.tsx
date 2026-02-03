@@ -8,7 +8,7 @@ import { AddBookmark } from './components/AddBookmark';
 import { Settings } from './components/Settings';
 import { SqlHelp } from './components/SqlHelp';
 import { About, Terms, Privacy } from './components/StaticPages';
-import { NewBookmark, ViewMode } from './types';
+import { NewBookmark, ViewMode, Bookmark } from './types';
 import { Session } from '@supabase/supabase-js';
 import { useBookmarks } from './hooks/useBookmarks';
 import { sanitizeUrl, sanitizeInput } from './utils/helpers';
@@ -417,6 +417,8 @@ const App: React.FC = () => {
             onDelete={deleteBookmark}
             onToggleRead={toggleReadStatus}
             onArchive={handleArchiveBookmark}
+            onSaveNotes={saveNotes}
+            onUpdate={updateBookmark}
             filterTag={filterTag}
             setFilterTag={handleSetFilterTag}
             filterFolder={filterFolder}
