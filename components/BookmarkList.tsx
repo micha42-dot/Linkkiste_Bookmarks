@@ -19,7 +19,6 @@ interface BookmarkListProps {
   onViewDetail: (id: number) => void;
   loading: boolean;
   viewMode: ViewMode;
-  userEmail?: string;
   onAddClick: () => void;
   onRefresh?: () => void;
   isRefreshing?: boolean;
@@ -208,6 +207,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
       } else {
           setEditingTagsFoldersId(id);
           setExpandedNoteId(null); // Close note drawer
+          setEditingNoteId(null);  // FIX: Explicitly clear note editing state
           setTagInput('');
           setFolderInput('');
       }
@@ -434,11 +434,29 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                 {!hasNotes && (
                                   <>
                                     <span className="text-gray-200 hidden md:inline">|</span>
-                                    <button onClick={() => handleStartEditNote(bm)} className={`text-[10px] md:text-[9px] font-bold uppercase ${isEditing ? 'text-black bg-gray-100 px-1 rounded-sm' : 'text-gray-400 hover:text-del-blue'}`}>add note</button>
+                                    <button 
+                                        onClick={() => handleStartEditNote(bm)} 
+                                        className={`text-[10px] md:text-[9px] font-bold uppercase ${
+                                            isEditing 
+                                            ? 'text-yellow-800 bg-yellow-50 border border-yellow-200 px-1 rounded-sm' // Active: Notes Yellow
+                                            : 'text-gray-400 hover:text-del-blue'
+                                        }`}
+                                    >
+                                        add note
+                                    </button>
                                   </>
                                 )}
                                 <span className="text-gray-200 hidden md:inline">|</span>
-                                <button onClick={() => handleToggleTagsFoldersDrawer(bm.id)} className={`text-[10px] md:text-[9px] font-bold uppercase ${isEditingTagsFolders ? 'text-black bg-gray-100 px-1 rounded-sm' : 'text-gray-400 hover:text-del-blue'}`}>edit tags / folders</button>
+                                <button 
+                                    onClick={() => handleToggleTagsFoldersDrawer(bm.id)} 
+                                    className={`text-[10px] md:text-[9px] font-bold uppercase ${
+                                        isEditingTagsFolders 
+                                        ? 'text-del-blue bg-blue-50 border border-blue-100 px-1 rounded-sm' // Active: Subtle Blue
+                                        : 'text-gray-400 hover:text-del-blue'
+                                    }`}
+                                >
+                                    edit tags / folders
+                                </button>
                                 <span className="text-gray-200 hidden md:inline">|</span>
                                 <button onClick={() => handleDelete(bm.id, bm.title)} className="text-gray-400 hover:text-red-500 text-[10px] md:text-[9px] font-bold uppercase">delete</button>
                             </div>
