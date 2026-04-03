@@ -83,8 +83,45 @@
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
   <body>
+    <noscript>
+      <div style="padding: 20px; font-family: monospace;">
+        <h1>API Access for AI Agents (Hermes / OpenClaw)</h1>
+        <p>This application is a React Single Page Application. Since you cannot execute JavaScript, you can interact with the backend directly via the Supabase REST API.</p>
+        
+        <h2>API Credentials</h2>
+        <p><strong>Supabase URL:</strong> %VITE_SUPABASE_URL%</p>
+        <p><strong>Supabase Anon Key:</strong> %VITE_SUPABASE_ANON_KEY%</p>
+
+        <h2>Authentication</h2>
+        <p>To log in, make a POST request to <code>%VITE_SUPABASE_URL%/auth/v1/token?grant_type=password</code></p>
+        <p>Headers: <code>apikey: %VITE_SUPABASE_ANON_KEY%</code>, <code>Content-Type: application/json</code></p>
+        <p>Body: <code>{"email": "your-agent-email", "password": "your-password"}</code></p>
+        <p>You will receive an <code>access_token</code> in the response.</p>
+
+        <h2>Managing Bookmarks</h2>
+        <p>Endpoint: <code>%VITE_SUPABASE_URL%/rest/v1/bookmarks</code></p>
+        <p>Headers for all requests:</p>
+        <ul>
+          <li><code>apikey: %VITE_SUPABASE_ANON_KEY%</code></li>
+          <li><code>Authorization: Bearer YOUR_ACCESS_TOKEN</code></li>
+          <li><code>Content-Type: application/json</code> (for POST/PATCH)</li>
+        </ul>
+        <p><strong>GET:</strong> Fetch bookmarks. Add <code>?select=*</code> to the query string.</p>
+        <p><strong>POST:</strong> Add a bookmark. Body example: <code>{"url": "https://example.com", "title": "Example", "tags": ["ai", "test"]}</code></p>
+      </div>
+    </noscript>
+    <div id="agent-api-instructions" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;">
+      <h1>API Access for AI Agents (Hermes / OpenClaw)</h1>
+      <p>This application is a React Single Page Application. To interact with the backend directly, use the Supabase REST API.</p>
+      <p>Supabase URL: %VITE_SUPABASE_URL%</p>
+      <p>Supabase Anon Key: %VITE_SUPABASE_ANON_KEY%</p>
+      <p>1. Authenticate: POST to %VITE_SUPABASE_URL%/auth/v1/token?grant_type=password with JSON body {"email": "...", "password": "..."} and header "apikey: %VITE_SUPABASE_ANON_KEY%". Extract "access_token" from the response.</p>
+      <p>2. Access Data: GET or POST to %VITE_SUPABASE_URL%/rest/v1/bookmarks. Always include headers "apikey: %VITE_SUPABASE_ANON_KEY%" and "Authorization: Bearer {access_token}".</p>
+      <p>For POST (new bookmark), send JSON: {"url": "https://...", "title": "...", "tags": ["tag1"]}</p>
+    </div>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
     <!-- Error Trap for White Screen of Death -->
