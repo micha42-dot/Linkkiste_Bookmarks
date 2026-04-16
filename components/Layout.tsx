@@ -9,6 +9,7 @@ interface LayoutProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   onLogoClick?: () => void;
+  theme?: 'default' | 'minimal';
 }
 
 interface TabProps {
@@ -41,12 +42,13 @@ export const Layout: React.FC<LayoutProps> = ({
   setView,
   searchTerm,
   setSearchTerm,
-  onLogoClick
+  onLogoClick,
+  theme
 }) => {
   const username = userEmail ? userEmail.split('@')[0] : 'user';
 
   return (
-    <div className="min-h-screen bg-white font-arial">
+    <div className={`min-h-screen bg-del-bg-header font-arial ${theme === 'minimal' ? 'theme-minimal' : ''}`}>
       
       {/* Top Login Bar - Hidden on small mobile to save space */}
       <div className="hidden md:flex justify-end items-center px-4 py-1 text-[11px] text-gray-400 border-b border-gray-100">
@@ -66,7 +68,7 @@ export const Layout: React.FC<LayoutProps> = ({
          </div>
       </div>
 
-      <header className="bg-white">
+      <header className="bg-del-bg-header">
         {/* Logo Section */}
         <div className="px-4 py-4 md:py-6 md:px-8">
             <div 
@@ -83,7 +85,7 @@ export const Layout: React.FC<LayoutProps> = ({
         </div>
 
         {/* Search Bar - Delicious Style */}
-        <div className="bg-[#f0f0f0] border-y border-[#cccccc] px-4 py-3 md:px-8">
+        <div className="bg-del-nav-bg border-y border-del-border px-4 py-3 md:px-8">
             <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 max-w-4xl">
                  <label className="text-sm font-bold text-gray-700 whitespace-nowrap hidden md:block">Search your bookmarks:</label>
                  <div className="flex w-full md:w-auto gap-2">
@@ -92,9 +94,9 @@ export const Layout: React.FC<LayoutProps> = ({
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Search tags, titles, URLs..."
-                        className="border border-[#cccccc] px-2 py-2 md:py-1 text-base md:text-sm w-full md:w-80 focus:border-del-blue outline-none rounded-sm"
+                        className="border border-del-border px-2 py-2 md:py-1 text-base md:text-sm w-full md:w-80 focus:border-del-blue outline-none rounded-sm bg-del-bg-header"
                     />
-                    <button className="bg-del-green hover:bg-[#7bc038] text-white text-xs font-bold uppercase px-4 py-1.5 rounded-sm shadow-sm transition-colors">
+                    <button className="bg-del-green hover:opacity-90 text-white text-xs font-bold uppercase px-4 py-1.5 rounded-sm shadow-sm transition-colors">
                         Search
                     </button>
                  </div>
