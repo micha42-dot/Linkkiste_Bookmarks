@@ -15,19 +15,19 @@
         theme: {
           extend: {
             colors: {
-              'del-blue': '#3274D1', // The classic Delicious Blue
-              'del-dark-blue': '#245dc1',
-              'del-link': '#3274D1',
-              'del-gray': '#999999',
-              'del-green': '#86C944', // The classic Delicious Green
-              'del-bg-header': '#ffffff',
-              'del-nav-bg': '#f0f0f0',
-              'del-border': '#CCCCCC',
-              'retro-blue': '#3274D1'
+              'del-blue': 'var(--color-del-blue)',
+              'del-dark-blue': 'var(--color-del-dark-blue)',
+              'del-link': 'var(--color-del-link)',
+              'del-gray': 'var(--color-del-gray)',
+              'del-green': 'var(--color-del-green)',
+              'del-bg-header': 'var(--color-del-bg-header)',
+              'del-nav-bg': 'var(--color-del-nav-bg)',
+              'del-border': 'var(--color-del-border)',
+              'retro-blue': 'var(--color-retro-blue)'
             },
             fontFamily: {
-              'retro': ['Arial', 'Helvetica', 'sans-serif'],
-              'arial': ['Arial', 'Helvetica', 'sans-serif'],
+              'retro': 'var(--font-retro)',
+              'arial': 'var(--font-arial)',
             },
             fontSize: {
               'xxs': '0.65rem',
@@ -37,23 +37,89 @@
       }
     </script>
     <style>
+      :root {
+        --color-del-blue: #3274D1;
+        --color-del-dark-blue: #245dc1;
+        --color-del-link: #3274D1;
+        --color-del-gray: #999999;
+        --color-del-green: #86C944;
+        --color-del-bg-header: #ffffff;
+        --color-del-nav-bg: #f0f0f0;
+        --color-del-border: #CCCCCC;
+        --color-retro-blue: #3274D1;
+        --font-retro: Arial, Helvetica, sans-serif;
+        --font-arial: Arial, Helvetica, sans-serif;
+      }
+
+      .theme-minimal {
+        --color-del-blue: #000000;
+        --color-del-dark-blue: #333333;
+        --color-del-link: #0000EE;
+        --color-del-gray: #000000;
+        --color-del-green: #000000;
+        --color-del-bg-header: #ffffff;
+        --color-del-nav-bg: #ffffff;
+        --color-del-border: #000000;
+        --color-retro-blue: #000000;
+        --font-retro: monospace;
+        --font-arial: monospace;
+        background-color: #ffffff !important;
+        color: #000000 !important;
+      }
+
       body {
         background-color: #FFFFFF;
-        font-family: Arial, Helvetica, sans-serif;
+        font-family: var(--font-arial);
         font-size: 13px;
         color: #333;
         line-height: 1.4;
         /* Prevent pull-to-refresh on mobile which feels web-like */
         overscroll-behavior-y: none;
       }
-      a { color: #3274D1; text-decoration: none; }
+      
+      .theme-minimal * {
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        border-color: #000000 !important;
+      }
+
+      .theme-minimal .bg-gray-50, 
+      .theme-minimal .bg-gray-100, 
+      .theme-minimal .bg-gray-200,
+      .theme-minimal .bg-\[\#f0f0f0\] {
+        background-color: #ffffff !important;
+      }
+
+      .theme-minimal .text-gray-400, 
+      .theme-minimal .text-gray-500, 
+      .theme-minimal .text-gray-600,
+      .theme-minimal .text-gray-700,
+      .theme-minimal .text-gray-800 {
+        color: #000000 !important;
+      }
+
+      a { color: var(--color-del-link); text-decoration: none; }
       a:hover { text-decoration: underline; }
+      
+      .theme-minimal a { text-decoration: underline; color: #0000EE !important; }
+      .theme-minimal a:hover { background-color: #000000 !important; color: #ffffff !important; text-decoration: none; }
+      
+      .theme-minimal button {
+        border: 1px solid #000000 !important;
+        background-color: #ffffff !important;
+        color: #000000 !important;
+      }
+      .theme-minimal button:hover {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+      }
+
       button { 
         cursor: pointer; 
         touch-action: manipulation; /* Prevents double-tap to zoom */
       }
       input[type="checkbox"] { cursor: pointer; }
-      .tag-cloud-item:hover { text-decoration: underline; color: #3274D1; }
+      .tag-cloud-item:hover { text-decoration: underline; color: var(--color-del-link); }
 
       /* Utility to truly hide scrollbars while allowing scroll */
       .scrollbar-hide::-webkit-scrollbar {

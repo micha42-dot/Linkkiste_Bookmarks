@@ -428,6 +428,7 @@ const App: React.FC = () => {
       searchTerm={searchTerm}
       setSearchTerm={setSearchTerm}
       onLogoClick={handleLogoClick}
+      theme={theme}
     >
       {(view === 'list' || view === 'tags' || view === 'folders' || view === 'unread') && (
         <>
