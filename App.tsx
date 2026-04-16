@@ -24,6 +24,7 @@ const App: React.FC = () => {
   
   // UI Preferences
   const [usePagination, setUsePagination] = useState(true);
+  const [theme, setTheme] = useState<'default' | 'minimal'>('default');
   // Pagination State (Lifted from BookmarkList for permalinks)
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -77,6 +78,14 @@ const App: React.FC = () => {
     const storedPagination = localStorage.getItem('linkkiste_use_pagination');
     if (storedPagination !== null) {
         setUsePagination(storedPagination === 'true');
+    }
+    const storedTheme = localStorage.getItem('linkkiste_theme');
+    if (storedTheme === 'minimal') {
+        setTheme('minimal');
+        document.body.classList.add('theme-minimal');
+    } else {
+        setTheme('default');
+        document.body.classList.remove('theme-minimal');
     }
 
     // 1. Check URL params
@@ -209,6 +218,16 @@ const App: React.FC = () => {
   const handleSetPagination = (enabled: boolean) => {
       setUsePagination(enabled);
       localStorage.setItem('linkkiste_use_pagination', String(enabled));
+  };
+
+  const handleSetTheme = (newTheme: 'default' | 'minimal') => {
+      setTheme(newTheme);
+      localStorage.setItem('linkkiste_theme', newTheme);
+      if (newTheme === 'minimal') {
+          document.body.classList.add('theme-minimal');
+      } else {
+          document.body.classList.remove('theme-minimal');
+      }
   };
 
   const handleLogoClick = () => {
@@ -484,6 +503,8 @@ const App: React.FC = () => {
             session={session} 
             usePagination={usePagination}
             onTogglePagination={handleSetPagination}
+            theme={theme}
+            onToggleTheme={handleSetTheme}
         />
       )}
       
