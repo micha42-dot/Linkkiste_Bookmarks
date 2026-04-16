@@ -286,7 +286,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                     <button 
                         key={tag} 
                         onClick={() => setFilterTag(tag)} 
-                        className="group border border-[#cccccc] bg-white hover:border-del-blue hover:bg-blue-50 px-2 py-1.5 rounded-sm text-sm transition-all flex items-center gap-2"
+                        className="group border border-[#cccccc] bg-white hover:border-del-blue hover:bg-blue-50 px-2 py-1.5 rounded-sm text-sm transition-all flex items-center gap-2 retro-no-border"
                     >
                         <span className="font-bold text-del-blue group-hover:underline">#{tag}</span>
                         <span className="text-gray-400 text-xs font-normal bg-gray-50 px-1.5 rounded-sm group-hover:bg-white group-hover:text-del-blue">{count}</span>
@@ -301,7 +301,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                 {allFolders.length === 0 && <div className="text-gray-400 italic">No folders created yet. Add a bookmark and define a folder name.</div>}
                 {allFolders.map(([folder, count]) => (
                     <div key={folder} className="group relative">
-                        <button onClick={() => setFilterFolder(folder)} className="w-full flex items-center justify-between p-4 bg-gray-50 border border-gray-200 hover:border-del-blue hover:bg-white transition-all text-left">
+                        <button onClick={() => setFilterFolder(folder)} className="w-full flex items-center justify-between p-4 bg-gray-50 border border-gray-200 hover:border-del-blue hover:bg-white transition-all text-left retro-no-border">
                             <div className="flex items-center gap-3">
                                 <span className="text-2xl opacity-50 group-hover:opacity-100">📁</span>
                                 <span className="font-bold text-gray-700 group-hover:text-del-blue">{folder}</span>
@@ -416,19 +416,19 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                             
                             {/* Action Buttons (Hover) */}
                             <div className="flex flex-wrap items-center gap-3 md:gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity w-full md:w-auto mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0 border-gray-100">
-                                <button onClick={() => onToggleRead(bm.id, bm.to_read)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase">{bm.to_read ? 'mark read' : 'save later'}</button>
+                                <button onClick={() => onToggleRead(bm.id, bm.to_read)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase retro-no-border">{bm.to_read ? 'mark read' : 'save later'}</button>
                                 <span className="text-gray-200 hidden md:inline">|</span>
-                                <button onClick={() => onViewDetail(bm.id)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase">permalink</button>
+                                <button onClick={() => onViewDetail(bm.id)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase retro-no-border">permalink</button>
                                 {!bm.archive_url && (
                                     <>
                                         <span className="text-gray-200 hidden md:inline">|</span>
-                                        <button onClick={() => onArchive(bm.id, bm.url)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase" title="Create snapshot on archive.is">Archive Page</button>
+                                        <button onClick={() => onArchive(bm.id, bm.url)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase retro-no-border" title="Create snapshot on archive.is">Archive Page</button>
                                     </>
                                 )}
                                 {filterFolder && bm.folders?.includes(filterFolder) && (
                                     <>
                                         <span className="text-gray-200 hidden md:inline">|</span>
-                                        <button onClick={() => handleRemoveFromFolder(bm.id, filterFolder)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase whitespace-nowrap">remove from folder</button>
+                                        <button onClick={() => handleRemoveFromFolder(bm.id, filterFolder)} className="text-gray-400 hover:text-del-blue text-[10px] md:text-[9px] font-bold uppercase whitespace-nowrap retro-no-border">remove from folder</button>
                                     </>
                                 )}
                                 {!hasNotes && (
@@ -436,7 +436,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                     <span className="text-gray-200 hidden md:inline">|</span>
                                     <button 
                                         onClick={() => handleStartEditNote(bm)} 
-                                        className={`text-[10px] md:text-[9px] font-bold uppercase ${
+                                        className={`text-[10px] md:text-[9px] font-bold uppercase retro-no-border ${
                                             isEditing 
                                             ? 'text-yellow-800 bg-yellow-50 border border-yellow-200 px-1 rounded-sm' // Active: Notes Yellow
                                             : 'text-gray-400 hover:text-del-blue'
@@ -449,7 +449,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                 <span className="text-gray-200 hidden md:inline">|</span>
                                 <button 
                                     onClick={() => handleToggleTagsFoldersDrawer(bm.id)} 
-                                    className={`text-[10px] md:text-[9px] font-bold uppercase ${
+                                    className={`text-[10px] md:text-[9px] font-bold uppercase retro-no-border ${
                                         isEditingTagsFolders 
                                         ? 'text-del-blue bg-blue-50 border border-blue-100 px-1 rounded-sm' // Active: Subtle Blue
                                         : 'text-gray-400 hover:text-del-blue'
@@ -458,7 +458,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                     edit tags / folders
                                 </button>
                                 <span className="text-gray-200 hidden md:inline">|</span>
-                                <button onClick={() => handleDelete(bm.id, bm.title)} className="text-gray-400 hover:text-red-500 text-[10px] md:text-[9px] font-bold uppercase">delete</button>
+                                <button onClick={() => handleDelete(bm.id, bm.title)} className="text-gray-400 hover:text-red-500 text-[10px] md:text-[9px] font-bold uppercase retro-no-border">delete</button>
                             </div>
                         </div>
 
@@ -563,7 +563,7 @@ export const BookmarkList: React.FC<BookmarkListProps> = ({
                                     </div>
                                 </div>
                                 <div className="flex justify-end mt-4 pt-2 border-t border-gray-200">
-                                    <button onClick={() => handleToggleTagsFoldersDrawer(bm.id)} className="text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase px-2 py-1 border border-gray-200 bg-white rounded-sm hover:bg-gray-50">
+                                    <button onClick={() => handleToggleTagsFoldersDrawer(bm.id)} className="text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase px-2 py-1 border border-gray-200 bg-white rounded-sm hover:bg-gray-50 retro-no-border">
                                         Close
                                     </button>
                                 </div>
