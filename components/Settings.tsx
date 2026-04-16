@@ -8,9 +8,11 @@ interface SettingsProps {
   session: Session;
   usePagination?: boolean;
   onTogglePagination?: (enabled: boolean) => void;
+  theme?: 'default' | 'minimal';
+  onToggleTheme?: (theme: 'default' | 'minimal') => void;
 }
 
-export const Settings: React.FC<SettingsProps> = ({ session, usePagination, onTogglePagination }) => {
+export const Settings: React.FC<SettingsProps> = ({ session, usePagination, onTogglePagination, theme, onToggleTheme }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: React.ReactNode; type: 'success' | 'error' } | null>(null);
@@ -330,6 +332,31 @@ export const Settings: React.FC<SettingsProps> = ({ session, usePagination, onTo
              </div>
              <p className="text-[10px] text-gray-400 mt-1">
                  "Pages" splits your list into 20 items per page. "Endless List" shows everything at once.
+             </p>
+        </div>
+
+        <div className="mb-4 pb-4 border-b border-gray-100">
+             <label className="block text-xs font-bold text-gray-600 mb-2">Design Theme</label>
+             <div className="flex items-center gap-2">
+                 {onToggleTheme && (
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${theme === 'minimal' ? 'bg-black' : 'bg-del-blue'}`}>
+                            <div className={`w-3 h-3 bg-white rounded-full shadow-sm transform transition-transform ${theme === 'minimal' ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                        </div>
+                        <input 
+                            type="checkbox" 
+                            className="hidden" 
+                            checked={theme === 'minimal'} 
+                            onChange={(e) => onToggleTheme(e.target.checked ? 'minimal' : 'default')} 
+                        />
+                        <span className="text-xs text-gray-700">
+                            {theme === 'minimal' ? 'Minimalist (Black & White, Monospace)' : 'Classic (del.icio.us)'}
+                        </span>
+                    </label>
+                 )}
+             </div>
+             <p className="text-[10px] text-gray-400 mt-1">
+                 Choose the visual style of your LinkKiste.
              </p>
         </div>
 
