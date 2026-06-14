@@ -350,7 +350,7 @@ export const Settings: React.FC<SettingsProps> = ({ session, usePagination, onTo
                             onChange={(e) => onToggleTheme(e.target.checked ? 'minimal' : 'default')} 
                         />
                         <span className="text-xs text-gray-700">
-                            {theme === 'minimal' ? 'Minimalist (Black & White, Monospace)' : 'Classic (del.icio.us)'}
+                            {theme === 'minimal' ? 'Minimalist (Black & White, Clean Type)' : 'Classic (del.icio.us)'}
                         </span>
                     </label>
                  )}
