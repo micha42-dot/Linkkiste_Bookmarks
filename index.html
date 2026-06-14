@@ -8,6 +8,7 @@
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="https://placehold.co/192x192/3274D1/FFFFFF.png?text=LK">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <title>LINK | Kiste</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -61,8 +62,8 @@
         --color-del-nav-bg: #ffffff;
         --color-del-border: #000000;
         --color-retro-blue: #000000;
-        --font-retro: monospace;
-        --font-arial: monospace;
+        --font-retro: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+        --font-arial: "Inter", system-ui, -apple-system, sans-serif;
         background-color: #ffffff !important;
         color: #000000 !important;
       }
@@ -112,6 +113,10 @@
       .theme-minimal button:hover {
         background-color: #000000 !important;
         color: #ffffff !important;
+      }
+      
+      .theme-minimal .retro-no-border {
+        border: none !important;
       }
 
       button { 
