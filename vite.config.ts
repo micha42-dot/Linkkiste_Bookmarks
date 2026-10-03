@@ -7,5 +7,14 @@ export default defineConfig({
     target: 'es2015',
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom'],
+          supabase: ['@supabase/supabase-js'],
+          markdown: ['react-markdown', 'remark-gfm']
+        }
+      }
+    }
   },
 });

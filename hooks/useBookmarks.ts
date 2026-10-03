@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { Bookmark, NewBookmark } from '../types';
 import { Session } from '@supabase/supabase-js';
@@ -8,11 +8,18 @@ export const useBookmarks = (session: Session | null) => {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const lastFetchRef = useRef<number>(0);
 
   // Fetch Logic
-  const fetchBookmarks = async (isBackgroundUpdate = false) => {
+  const fetchBookmarks = useCallback(async (isBackgroundUpdate = false) => {
     if (!session || !isSupabaseConfigured) return;
     
+    const now = Date.now();
+    // Prevent spamming background queries if fetched less than 30s ago
+    if (isBackgroundUpdate && now - lastFetchRef.current < 30000) {
+      return;
+    }
+
     if (!isBackgroundUpdate && bookmarks.length === 0) {
         setLoading(true);
     }
@@ -21,21 +28,23 @@ export const useBookmarks = (session: Session | null) => {
         setIsRefreshing(true);
     }
     
-    let query = supabase
-      .from('bookmarks')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('bookmarks')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('Error fetching bookmarks:', error);
-    } else {
-      setBookmarks(data as Bookmark[] || []);
+      if (error) {
+        console.error('Error fetching bookmarks:', error);
+      } else {
+        setBookmarks(data as Bookmark[] || []);
+        lastFetchRef.current = Date.now();
+      }
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
     }
-    setLoading(false);
-    setIsRefreshing(false);
-  };
+  }, [session]);
 
   // Initial Fetch on Session Change
   useEffect(() => {
@@ -43,26 +52,34 @@ export const useBookmarks = (session: Session | null) => {
       const hasData = bookmarks.length > 0;
       fetchBookmarks(hasData); 
     }
-  }, [session?.user?.id]);
+  }, [session?.user?.id, fetchBookmarks]);
 
   // CRUD Operations
   const addBookmark = async (newBm: NewBookmark) => {
     if (!session?.user) throw new Error('No user');
 
-    const { error } = await supabase.from('bookmarks').insert([
+    const { data, error } = await supabase.from('bookmarks').insert([
       {
         url: newBm.url,
         title: newBm.title,
         description: newBm.description,
+        notes: newBm.notes || null,
         tags: newBm.tags,
         folders: newBm.folders,
         to_read: newBm.to_read,
         user_id: session.user.id
       }
-    ]);
+    ]).select().single();
 
     if (error) throw error;
-    await fetchBookmarks(true);
+    if (data) {
+      const savedBookmark = data as Bookmark;
+      // Optimistically add to top of list immediately without full network refetch
+      setBookmarks(prev => [savedBookmark, ...prev.filter(b => b.id !== savedBookmark.id)]);
+      lastFetchRef.current = Date.now();
+      return savedBookmark;
+    }
+    return data as Bookmark;
   };
 
   const updateBookmark = async (id: number, updates: Partial<Bookmark>) => {
@@ -71,17 +88,18 @@ export const useBookmarks = (session: Session | null) => {
       
       const { error } = await supabase.from('bookmarks').update(updates).eq('id', id);
       if (error) {
-          alert('Error updating bookmark: ' + error.message);
+          console.error('Error updating bookmark:', error);
           fetchBookmarks(true); // Revert
       }
   };
 
   const deleteBookmark = async (id: number) => {
+    // Optimistic delete
+    setBookmarks(prev => prev.filter(b => b.id !== id));
     const { error } = await supabase.from('bookmarks').delete().eq('id', id);
     if (error) {
-      alert('Error deleting: ' + error.message);
-    } else {
-      setBookmarks(prev => prev.filter(b => b.id !== id));
+      console.error('Error deleting bookmark:', error);
+      fetchBookmarks(true); // Revert
     }
   };
 
@@ -92,6 +110,8 @@ export const useBookmarks = (session: Session | null) => {
   const saveNotes = async (id: number, notes: string) => {
      await updateBookmark(id, { notes });
   };
+
+  // --- FOLDER LOGIC ---
 
   const addFolder = async (id: number, folder: string) => {
       const bm = bookmarks.find(b => b.id === id);
@@ -127,6 +147,27 @@ export const useBookmarks = (session: Session | null) => {
       }
   };
 
+  // --- TAG LOGIC ---
+
+  const addTag = async (id: number, tag: string) => {
+      const bm = bookmarks.find(b => b.id === id);
+      if (!bm) return;
+      const cleanTag = tag.trim().toLowerCase();
+      if (!cleanTag) return;
+      
+      const currentTags = bm.tags || [];
+      if (currentTags.includes(cleanTag)) return;
+
+      await updateBookmark(id, { tags: [...currentTags, cleanTag] });
+  };
+
+  const removeTag = async (id: number, tag: string) => {
+      const bm = bookmarks.find(b => b.id === id);
+      if (!bm) return;
+      const newTags = bm.tags?.filter(t => t !== tag) || [];
+      await updateBookmark(id, { tags: newTags });
+  };
+
   // Derived State (Memoized)
   const allFolders = useMemo(() => {
     const folders = new Set<string>();
@@ -151,6 +192,8 @@ export const useBookmarks = (session: Session | null) => {
       addFolder,
       removeFolder,
       deleteEntireFolder,
+      addTag,
+      removeTag,
       allFolders,
       existingUrls
   };

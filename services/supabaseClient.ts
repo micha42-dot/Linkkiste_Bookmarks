@@ -3,18 +3,17 @@ import { createClient } from '@supabase/supabase-js';
 // ------------------------------------------------------------------
 // CONFIGURATION
 // ------------------------------------------------------------------
-// In a public repository, we strictly use Environment Variables.
-// do NOT hardcode keys here. Use a .env file locally or
-// Project Settings in Vercel/Netlify.
+// Hardcoded credentials for this specific dev instance as requested.
 // ------------------------------------------------------------------
 
-const PLACEHOLDER_URL = 'https://your-project.supabase.co';
-const PLACEHOLDER_KEY = 'your-anon-key-goes-here';
+const HARDCODED_URL = 'https://aiqjkfdlblvsuspsgoxp.supabase.co';
+const HARDCODED_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpcWprZmRsYmx2c3VzcHNnb3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMjAyNzMsImV4cCI6MjA4MzY5NjI3M30.sj92mWAxRtaAjfw7L3bNJna07XpSkZ-XLIla7vOP_UA';
 
-let supabaseUrl = PLACEHOLDER_URL;
-let supabaseAnonKey = PLACEHOLDER_KEY;
+let supabaseUrl = HARDCODED_URL;
+let supabaseAnonKey = HARDCODED_KEY;
 
-// Attempt to load from Environment Variables (Vite standard)
+// Attempt to load from Environment Variables (Vite standard) - Optional override
+// We safely check for import.meta.env existence first
 if (import.meta && import.meta.env) {
     // Debug Log to help verify Cloudflare Environment Variables (DEV only)
     if (import.meta.env.DEV) {
@@ -34,14 +33,18 @@ if (import.meta && import.meta.env) {
 }
 
 // Logic to determine if the app is ready to run
+// Since we have hardcoded keys, this should effectively always be true
 export const isSupabaseConfigured = 
   supabaseUrl !== '' && 
-  supabaseUrl !== PLACEHOLDER_URL &&
+  supabaseUrl !== 'https://your-project.supabase.co' &&
   supabaseAnonKey !== '' && 
-  supabaseAnonKey !== PLACEHOLDER_KEY;
+  supabaseAnonKey !== 'your-anon-key-goes-here';
 
 if (isSupabaseConfigured) {
-    if (import.meta.env.DEV) {
+    // Safe check before accessing import.meta.env.DEV
+    const isDev = import.meta && import.meta.env && import.meta.env.DEV;
+    
+    if (isDev) {
         try {
             const projectId = supabaseUrl.split('//')[1].split('.')[0];
             console.log(`LINKkiste: Connected to Project ${projectId}`);

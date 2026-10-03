@@ -17,9 +17,10 @@ export interface NewBookmark {
   url: string;
   title: string;
   description: string;
+  notes?: string;
   tags: string[];
   folders: string[];
   to_read: boolean;
 }
 
-export type ViewMode = 'list' | 'add' | 'tags' | 'folders' | 'settings' | 'unread' | 'detail' | 'about' | 'terms' | 'privacy';
+export type ViewMode = 'list' | 'add' | 'tags' | 'folders' | 'settings' | 'unread' | 'detail' | 'about' | 'terms' | 'privacy' | 'ai' | 'wiki' | 'notes';

@@ -1,4 +1,6 @@
 
+import { Bookmark } from '../types';
+
 /**
  * Centralized helper functions to avoid redundancy and improve consistency.
  */
@@ -91,4 +93,35 @@ export const escapeSqlString = (str: string | null): string => {
     if (str === null || str === undefined) return 'NULL';
     // Escape single quotes by doubling them
     return `'${String(str).replace(/'/g, "''")}'`;
+};
+
+// Markdown Task Checklist Toggle Helper
+export const toggleMarkdownCheckbox = (content: string, targetIndex: number): string => {
+    let currentIndex = 0;
+    return content.replace(/^(\s*[-*+]|\s*\d+\.)\s+\[([ xX])\]/gm, (match, prefix, checkState) => {
+        if (currentIndex === targetIndex) {
+            currentIndex++;
+            const isCurrentlyChecked = checkState.trim().toLowerCase() === 'x';
+            const newState = isCurrentlyChecked ? ' ' : 'x';
+            return `${prefix} [${newState}]`;
+        }
+        currentIndex++;
+        return match;
+    });
+};
+
+// Check if an item is a Wiki Page (has empty URL, is tagged with 'wiki' or 'daily-note', and is not a Note)
+export const isWikiBookmark = (b: Bookmark): boolean => {
+    const isExplicitNote = Boolean(b.tags && b.tags.some(t => ['note', 'notes', 'scratchpad', 'memo'].includes(t.toLowerCase())));
+    if (isExplicitNote) return false;
+    const hasWikiTag = Boolean(b.tags && (b.tags.includes('wiki') || b.tags.includes('daily-note')));
+    return (!b.url || b.url.trim() === '') && hasWikiTag;
+};
+
+// Check if an item is a Note (distinct from Wiki pages and regular URL bookmarks)
+export const isNoteBookmark = (b: Bookmark): boolean => {
+    if (isWikiBookmark(b)) return false;
+    const isExplicitNote = Boolean(b.tags && b.tags.some(t => ['note', 'notes', 'scratchpad', 'memo'].includes(t.toLowerCase())));
+    const isEmptyUrl = !b.url || b.url.trim() === '';
+    return isEmptyUrl || isExplicitNote;
 };

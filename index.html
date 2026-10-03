@@ -3,32 +3,34 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+    <meta name="description" content="A minimalist, personal bookmarking tool inspired by early del.icio.us. Private, fast, and tag-based." />
+    <meta property="og:title" content="LinkKiste" />
+    <meta property="og:description" content="A minimalist, personal bookmarking tool inspired by early del.icio.us. Private, fast, and tag-based." />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#3274D1" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="https://placehold.co/192x192/3274D1/FFFFFF.png?text=LK">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <title>LINK | Kiste</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>LinkKiste</title>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
-              'del-blue': 'var(--color-del-blue)',
-              'del-dark-blue': 'var(--color-del-dark-blue)',
-              'del-link': 'var(--color-del-link)',
-              'del-gray': 'var(--color-del-gray)',
-              'del-green': 'var(--color-del-green)',
-              'del-bg-header': 'var(--color-del-bg-header)',
-              'del-nav-bg': 'var(--color-del-nav-bg)',
-              'del-border': 'var(--color-del-border)',
-              'retro-blue': 'var(--color-retro-blue)'
+              'del-blue': '#3274D1', // The classic Delicious Blue
+              'del-dark-blue': '#245dc1',
+              'del-link': '#3274D1',
+              'del-gray': '#999999',
+              'del-green': '#86C944', // The classic Delicious Green
+              'del-bg-header': '#ffffff',
+              'del-nav-bg': '#f0f0f0',
+              'del-border': '#CCCCCC',
+              'retro-blue': '#3274D1'
             },
             fontFamily: {
-              'retro': 'var(--font-retro)',
-              'arial': 'var(--font-arial)',
+              'retro': ['Arial', 'Helvetica', 'sans-serif'],
+              'arial': ['Arial', 'Helvetica', 'sans-serif'],
             },
             fontSize: {
               'xxs': '0.65rem',
@@ -38,85 +40,44 @@
       }
     </script>
     <style>
-      :root {
-        --color-del-blue: #3274D1;
-        --color-del-dark-blue: #245dc1;
-        --color-del-link: #3274D1;
-        --color-del-gray: #999999;
-        --color-del-green: #86C944;
-        --color-del-bg-header: #ffffff;
-        --color-del-nav-bg: #f0f0f0;
-        --color-del-border: #CCCCCC;
-        --color-retro-blue: #3274D1;
-        --font-retro: Arial, Helvetica, sans-serif;
-        --font-arial: Arial, Helvetica, sans-serif;
-      }
-
-      .theme-minimal {
-        --color-del-blue: #000000;
-        --color-del-dark-blue: #333333;
-        --color-del-link: #0000EE;
-        --color-del-gray: #000000;
-        --color-del-green: #000000;
-        --color-del-bg-header: #ffffff;
-        --color-del-nav-bg: #ffffff;
-        --color-del-border: #000000;
-        --color-retro-blue: #000000;
-        --font-retro: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-        --font-arial: "Inter", system-ui, -apple-system, sans-serif;
-        background-color: #ffffff !important;
-        color: #000000 !important;
-      }
-
       body {
         background-color: #FFFFFF;
-        font-family: var(--font-arial);
+        font-family: Arial, Helvetica, sans-serif;
         font-size: 13px;
         color: #333;
         line-height: 1.4;
         /* Prevent pull-to-refresh on mobile which feels web-like */
         overscroll-behavior-y: none;
       }
-      
-      .theme-minimal * {
-        border-radius: 0 !important;
-        box-shadow: none !important;
-        border-color: #000000 !important;
-      }
-
-      .theme-minimal .bg-gray-50, 
-      .theme-minimal .bg-gray-100, 
-      .theme-minimal .bg-gray-200,
-      .theme-minimal .bg-\[\#f0f0f0\] {
-        background-color: #ffffff !important;
-      }
-
-      .theme-minimal .text-gray-400, 
-      .theme-minimal .text-gray-500, 
-      .theme-minimal .text-gray-600,
-      .theme-minimal .text-gray-700,
-      .theme-minimal .text-gray-800 {
-        color: #000000 !important;
-      }
-
-      a { color: var(--color-del-link); text-decoration: none; }
+      a { color: #3274D1; text-decoration: none; }
       a:hover { text-decoration: underline; }
+      a.no-underline, a.no-underline:hover, a.no-underline *, .no-underline, .no-underline * { text-decoration: none !important; }
       
-      .theme-minimal a { text-decoration: underline; color: #0000EE !important; }
-      .theme-minimal a:hover { background-color: #000000 !important; color: #ffffff !important; text-decoration: none; }
-      
-      .theme-minimal button {
-        border: 1px solid #000000 !important;
-        background-color: #ffffff !important;
-        color: #000000 !important;
+      /* Subtle offset floating animation for LinkKiste logo squares on hover */
+      @keyframes logoBobSquare1 {
+        0%, 100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-5px);
+        }
       }
-      .theme-minimal button:hover {
-        background-color: #000000 !important;
-        color: #ffffff !important;
+
+      @keyframes logoBobSquare2 {
+        0%, 100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(4px);
+        }
       }
-      
-      .theme-minimal .retro-no-border {
-        border: none !important;
+
+      .group:hover .logo-square-1 {
+        animation: logoBobSquare1 1.8s ease-in-out infinite;
+      }
+
+      .group:hover .logo-square-2 {
+        animation: logoBobSquare2 1.8s ease-in-out infinite 0.35s;
       }
 
       button { 
@@ -124,7 +85,7 @@
         touch-action: manipulation; /* Prevents double-tap to zoom */
       }
       input[type="checkbox"] { cursor: pointer; }
-      .tag-cloud-item:hover { text-decoration: underline; color: var(--color-del-link); }
+      .tag-cloud-item:hover { text-decoration: underline; color: #3274D1; }
 
       /* Utility to truly hide scrollbars while allowing scroll */
       .scrollbar-hide::-webkit-scrollbar {
@@ -135,6 +96,58 @@
           scrollbar-width: none;  /* Firefox */
       }
 
+      /* Clean Web 2.0 / Delicious Era Flat Button & Header Styles (No 3D / No glossy gradients) */
+      .web2-btn {
+        background: #F4F4F4;
+        border: 1px solid #CCCCCC;
+        color: #333333;
+      }
+      .web2-btn:hover {
+        background: #EAEAEA;
+        border-color: #AAAAAA;
+      }
+      .web2-btn:active {
+        background: #DFDFDF;
+      }
+
+      .web2-btn-blue {
+        background: #3274D1;
+        border: 1px solid #255CB0;
+        color: #FFFFFF !important;
+      }
+      .web2-btn-blue:hover {
+        background: #205CB0;
+      }
+      .web2-btn-blue:active {
+        background: #18478C;
+      }
+
+      .web2-btn-green {
+        background: #86C944;
+        border: 1px solid #71B034;
+        color: #FFFFFF !important;
+      }
+      .web2-btn-green:hover {
+        background: #76B736;
+      }
+      .web2-btn-green:active {
+        background: #5E9429;
+      }
+
+      .web2-panel-header {
+        background: #F0F4FA;
+        border-bottom: 1px solid #D8E2F0;
+      }
+
+      .web2-input {
+        background-color: #FFFFFF;
+        border: 1px solid #CCCCCC;
+      }
+      .web2-input:focus {
+        border-color: #3274D1;
+        outline: none;
+      }
+
       /* Prevent iOS zoom on inputs by enforcing 16px on small screens */
       @media screen and (max-width: 768px) {
         input, textarea, select {
@@ -142,57 +155,8 @@
         }
       }
     </style>
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@^19.2.4",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "vite": "https://esm.sh/vite@^7.3.1",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.93.1",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body>
-    <noscript>
-      <div style="padding: 20px; font-family: monospace;">
-        <h1>API Access for AI Agents (Hermes / OpenClaw)</h1>
-        <p>This application is a React Single Page Application. Since you cannot execute JavaScript, you can interact with the backend directly via the Supabase REST API.</p>
-        
-        <h2>API Credentials</h2>
-        <p><strong>Supabase URL:</strong> %VITE_SUPABASE_URL%</p>
-        <p><strong>Supabase Anon Key:</strong> %VITE_SUPABASE_ANON_KEY%</p>
-
-        <h2>Authentication</h2>
-        <p>To log in, make a POST request to <code>%VITE_SUPABASE_URL%/auth/v1/token?grant_type=password</code></p>
-        <p>Headers: <code>apikey: %VITE_SUPABASE_ANON_KEY%</code>, <code>Content-Type: application/json</code></p>
-        <p>Body: <code>{"email": "your-agent-email", "password": "your-password"}</code></p>
-        <p>You will receive an <code>access_token</code> in the response.</p>
-
-        <h2>Managing Bookmarks</h2>
-        <p>Endpoint: <code>%VITE_SUPABASE_URL%/rest/v1/bookmarks</code></p>
-        <p>Headers for all requests:</p>
-        <ul>
-          <li><code>apikey: %VITE_SUPABASE_ANON_KEY%</code></li>
-          <li><code>Authorization: Bearer YOUR_ACCESS_TOKEN</code></li>
-          <li><code>Content-Type: application/json</code> (for POST/PATCH)</li>
-        </ul>
-        <p><strong>GET:</strong> Fetch bookmarks. Add <code>?select=*</code> to the query string.</p>
-        <p><strong>POST:</strong> Add a bookmark. Body example: <code>{"url": "https://example.com", "title": "Example", "tags": ["ai", "test"]}</code></p>
-      </div>
-    </noscript>
-    <div id="agent-api-instructions" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;">
-      <h1>API Access for AI Agents (Hermes / OpenClaw)</h1>
-      <p>This application is a React Single Page Application. To interact with the backend directly, use the Supabase REST API.</p>
-      <p>Supabase URL: %VITE_SUPABASE_URL%</p>
-      <p>Supabase Anon Key: %VITE_SUPABASE_ANON_KEY%</p>
-      <p>1. Authenticate: POST to %VITE_SUPABASE_URL%/auth/v1/token?grant_type=password with JSON body {"email": "...", "password": "..."} and header "apikey: %VITE_SUPABASE_ANON_KEY%". Extract "access_token" from the response.</p>
-      <p>2. Access Data: GET or POST to %VITE_SUPABASE_URL%/rest/v1/bookmarks. Always include headers "apikey: %VITE_SUPABASE_ANON_KEY%" and "Authorization: Bearer {access_token}".</p>
-      <p>For POST (new bookmark), send JSON: {"url": "https://...", "title": "...", "tags": ["tag1"]}</p>
-    </div>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
     <!-- Error Trap for White Screen of Death -->

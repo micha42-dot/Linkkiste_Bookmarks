@@ -1,5 +1,8 @@
 {
-  "name": "LINK | kiste",
+  "name": "LinkKiste",
   "description": "A minimalist, personal bookmarking tool inspired by early del.icio.us. Private, fast, and tag-based.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
