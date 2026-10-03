@@ -93,7 +93,24 @@ create policy "Users can delete their own bookmarks" on bookmarks for delete usi
 {`insert into storage.buckets (id, name, public) values ('avatars', 'avatars', true);
 
 create policy "Avatar images are publicly accessible" on storage.objects for select using ( bucket_id = 'avatars' );
-create policy "Anyone can upload an avatar" on storage.objects for insert with check ( bucket_id = 'avatars' AND auth.role() = 'authenticated' );`}
+create policy "Anyone can upload an avatar" on storage.objects for insert with check ( bucket_id = 'avatars' AND auth.role() = 'authenticated' );
+
+-- 4. Create User Settings Table (For secure API Key storage)
+create table user_settings (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  ai_api_key text,
+  ai_base_url text,
+  ai_query_model text,
+  wiki_model text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS for settings
+alter table user_settings enable row level security;
+create policy "Users can view their own settings" on user_settings for select using (auth.uid() = user_id);
+create policy "Users can insert their own settings" on user_settings for insert with check (auth.uid() = user_id);
+create policy "Users can update their own settings" on user_settings for update using (auth.uid() = user_id);`}
             </pre>
           </div>
         </section>

@@ -1,9 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Bookmark } from '../types';
-import { formatDateTime, parseTags } from '../utils/helpers';
+import { formatDateTime, parseTags, toggleMarkdownCheckbox } from '../utils/helpers';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { ConfirmModal } from './ConfirmModal';
+
+// Helper to replace [[WikiLinks]] with standard markdown links pointing to search
+const processWikiLinks = (text: string) => {
+    if (!text) return '';
+    return text.replace(/\[\[(.*?)\]\]/g, '[$1](/?q=$1)');
+};
 
 interface BookmarkDetailProps {
   bookmark: Bookmark;
+  backlinks?: Bookmark[];
   onSaveNotes: (id: number, notes: string) => Promise<void>;
   onUpdate: (id: number, data: { title: string, url: string, description: string, tags: string[], folders: string[], archive_url?: string | null }) => Promise<void>;
   onArchive: (id: number, url: string) => void;
@@ -11,17 +21,22 @@ interface BookmarkDetailProps {
   onClose: () => void;
   onDelete: (id: number) => void;
   onToggleRead: (id: number, status: boolean) => void;
+  onFilterTag?: (tag: string) => void;
+  onFilterFolder?: (folder: string) => void;
 }
 
 export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({ 
-  bookmark, 
+  bookmark,
+  backlinks = [],
   onSaveNotes, 
   onUpdate,
   onArchive,
   allFolders,
   onClose,
   onDelete,
-  onToggleRead
+  onToggleRead,
+  onFilterTag,
+  onFilterFolder
 }) => {
   const [notes, setNotes] = useState(bookmark.notes || '');
   const [isEditingNotes, setIsEditingNotes] = useState(!bookmark.notes); 
@@ -36,6 +51,7 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
   const [archiveUrl, setArchiveUrl] = useState(bookmark.archive_url || '');
   const [tagsStr, setTagsStr] = useState(bookmark.tags ? bookmark.tags.join(', ') : '');
   const [selectedFolders, setSelectedFolders] = useState<string[]>(bookmark.folders || []);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   useEffect(() => {
     setNotes(bookmark.notes || '');
@@ -59,7 +75,9 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
   const handleSaveMetaAction = async () => {
     setIsSavingMeta(true);
     try {
+        // Use central helper to ensure lowercase consistency
         const tagArray = parseTags(tagsStr);
+        
         await onUpdate(bookmark.id, {
             title, url, description, tags: tagArray, folders: selectedFolders, archive_url: archiveUrl.trim() || null
         });
@@ -95,6 +113,9 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
   };
 
   const removeTag = (tagToRemove: string) => {
+      // Use parseTags here too to ensure we are matching against the normalized version if needed, 
+      // but strictly speaking visual removal works on the string.
+      // For safety, we just split and filter.
       const currentTags = tagsStr.split(',').map(t => t.trim()).filter(t => t.length > 0);
       const newTags = currentTags.filter(t => t !== tagToRemove);
       setTagsStr(newTags.join(', '));
@@ -103,13 +124,18 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
   const dateStr = formatDateTime(bookmark.created_at);
 
   const handleDelete = () => {
-      if(window.confirm('Really delete this bookmark?')) {
-          onDelete(bookmark.id);
-          onClose();
-      }
-  }
+    setIsConfirmOpen(true);
+  };
 
+  const handleConfirmDelete = () => {
+    onDelete(bookmark.id);
+    setIsConfirmOpen(false);
+    onClose();
+  };
+
+  // Display logic: also clean up display if dirty data exists temporarily
   const tagChips = tagsStr.split(',').map(t => t.trim()).filter(t => t.length > 0);
+  
   const getArchiveDomain = (urlStr: string) => {
       try { return new URL(urlStr).hostname.replace('www.', ''); } catch (e) { return 'external'; }
   }
@@ -118,7 +144,7 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
     <div className="max-w-4xl mx-auto">
       <div className="mb-6 border-b border-gray-200 pb-2 flex justify-between items-center">
         <button onClick={onClose} className="text-xs font-bold text-del-blue hover:underline">&laquo; back to list</button>
-        <div className="flex gap-4 items-center">
+        <div className="flex gap-2 items-center">
              {!isEditingMeta && (
                 <button onClick={() => setIsEditingMeta(true)} className="bg-del-green hover:bg-[#7bc038] text-white px-3 py-1.5 rounded-sm flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide shadow-sm transition-colors">
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg> Edit Details
@@ -180,15 +206,55 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
         ) : (
             <>
                 <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-black mb-1 leading-tight pr-12"><a href={bookmark.url} target="_blank" rel="noopener noreferrer" className="hover:underline text-del-blue">{bookmark.title}</a></h1>
-                    <a href={bookmark.url} target="_blank" className="text-sm text-gray-500 hover:underline break-all block pr-12">{bookmark.url}</a>
+                    <h1 className="text-2xl font-bold text-black mb-1 leading-tight pr-12">
+                        {bookmark.url ? (
+                            <a href={bookmark.url} target="_blank" rel="noopener noreferrer" className="hover:underline text-del-blue">{bookmark.title}</a>
+                        ) : (
+                            <span>{bookmark.title}</span>
+                        )}
+                    </h1>
+                    {bookmark.url && <a href={bookmark.url} target="_blank" className="text-sm text-gray-500 hover:underline break-all block pr-12">{bookmark.url}</a>}
                     <div className="text-[11px] text-gray-400 mt-1">Saved on {dateStr}</div>
                 </div>
                 {bookmark.description && (<div className="mb-8 p-4 bg-gray-50 border-l-4 border-gray-200 text-gray-700 italic">{bookmark.description}</div>)}
                 <div className="flex flex-wrap gap-4 mb-8 text-xs border-y border-gray-100 py-3">
-                    <div className="flex items-center gap-2"><span className="font-bold text-gray-500">Tags:</span>{bookmark.tags && bookmark.tags.length > 0 ? (bookmark.tags.map(t => (<span key={t} className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-sm">{t}</span>))) : <span className="text-gray-300 italic">none</span>}</div>
+                    <div className="flex items-center gap-2">
+                        <span className="font-bold text-gray-500">Tags:</span>
+                        {bookmark.tags && bookmark.tags.length > 0 ? (
+                            bookmark.tags.map(t => (
+                                <a 
+                                    key={t} 
+                                    href={`?tag=${encodeURIComponent(t)}`} 
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        if (onFilterTag) onFilterTag(t);
+                                    }}
+                                    className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-sm hover:bg-gray-200 hover:text-black transition-colors"
+                                >
+                                    {t}
+                                </a>
+                            ))
+                        ) : <span className="text-gray-300 italic">none</span>}
+                    </div>
                     <div className="w-px bg-gray-200 h-4"></div>
-                    <div className="flex items-center gap-2"><span className="font-bold text-gray-500">Folders:</span>{bookmark.folders && bookmark.folders.length > 0 ? (bookmark.folders.map(f => (<span key={f} className="bg-del-blue/10 text-del-blue px-2 py-0.5 rounded-sm">{f}</span>))) : <span className="text-gray-300 italic">none</span>}</div>
+                    <div className="flex items-center gap-2">
+                        <span className="font-bold text-gray-500">Folders:</span>
+                        {bookmark.folders && bookmark.folders.length > 0 ? (
+                            bookmark.folders.map(f => (
+                                <a 
+                                    key={f} 
+                                    href={`?folder=${encodeURIComponent(f)}`} 
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        if (onFilterFolder) onFilterFolder(f);
+                                    }}
+                                    className="bg-del-blue/10 text-del-blue px-2 py-0.5 rounded-sm hover:bg-del-blue/20 transition-colors"
+                                >
+                                    {f}
+                                </a>
+                            ))
+                        ) : <span className="text-gray-300 italic">none</span>}
+                    </div>
                 </div>
             </>
         )}
@@ -205,13 +271,60 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
                 </div>
             ) : (
                 <div className="bg-[#fffff8] border border-gray-200 p-6 rounded-sm shadow-sm relative group">
-                    <div className="prose prose-sm max-w-none font-serif text-gray-800 whitespace-pre-wrap leading-relaxed text-[15px]">{notes}</div>
+                    <div className="prose prose-sm max-w-none font-serif text-gray-800 leading-relaxed text-[15px] prose-p:my-2 prose-a:text-del-blue">
+                        {(() => {
+                            let checkboxIndex = 0;
+                            return (
+                                <ReactMarkdown 
+                                    remarkPlugins={[remarkGfm]}
+                                    components={{
+                                        input: ({ node, ...props }) => {
+                                            if (props.type === 'checkbox') {
+                                                const currentIdx = checkboxIndex++;
+                                                return (
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={props.checked}
+                                                        onChange={async (e) => {
+                                                            e.stopPropagation();
+                                                            const updated = toggleMarkdownCheckbox(notes, currentIdx);
+                                                            setNotes(updated);
+                                                            await onSaveNotes(bookmark.id, updated);
+                                                        }}
+                                                        className="mr-1.5 align-middle cursor-pointer accent-del-blue h-3.5 w-3.5 rounded"
+                                                    />
+                                                );
+                                            }
+                                            return <input {...props} />;
+                                        }
+                                    }}
+                                >
+                                    {processWikiLinks(notes)}
+                                </ReactMarkdown>
+                            );
+                        })()}
+                    </div>
                     <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end opacity-50 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => setIsEditingNotes(true)} className="flex items-center gap-1 text-del-blue hover:text-del-dark-blue hover:underline text-xs font-bold uppercase"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg> Edit Notes</button>
                     </div>
                 </div>
             )}
         </div>
+
+        {backlinks && backlinks.length > 0 && (
+            <div className="mb-6">
+                <div className="flex justify-between items-end mb-2"><label className="font-bold text-sm text-gray-800 flex items-center gap-2"><span>🔗 Linked Mentions</span></label></div>
+                <div className="bg-white border border-gray-200 rounded-sm p-4 space-y-3">
+                    {backlinks.map(bl => (
+                        <div key={bl.id} className="text-sm">
+                            <a href={`?id=${bl.id}`} className="font-bold text-del-blue hover:underline">
+                                📄 {bl.title}
+                            </a>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
 
         {bookmark.archive_url && (
             <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-sm flex justify-between items-center">
@@ -225,12 +338,20 @@ export const BookmarkDetail: React.FC<BookmarkDetailProps> = ({
 
         <div className="flex gap-4 pt-4 border-t border-gray-100 mt-2 justify-between items-center">
             <div className="flex gap-4 items-center">
-                <button onClick={() => onToggleRead(bookmark.id, bookmark.to_read)} className="text-xs font-bold text-gray-500 hover:text-del-blue uppercase">{bookmark.to_read ? '✓ Mark as Read' : '○ Save for later'}</button>
-                {!bookmark.archive_url && (<button onClick={() => onArchive(bookmark.id, bookmark.url)} className="text-xs font-bold text-gray-500 hover:text-del-blue uppercase" title="Create snapshot on archive.is">Archive Page</button>)}
-                <button onClick={handleDelete} className="text-xs font-bold text-gray-400 hover:text-red-600 uppercase">Delete Bookmark</button>
+                <button onClick={() => onToggleRead(bookmark.id, bookmark.to_read)} className="text-xs font-bold text-gray-500 hover:text-del-blue uppercase cursor-pointer">{bookmark.to_read ? '✓ Mark as Read' : '○ Save for later'}</button>
+                {!bookmark.archive_url && (<button onClick={() => onArchive(bookmark.id, bookmark.url)} className="text-xs font-bold text-gray-500 hover:text-del-blue uppercase cursor-pointer" title="Create snapshot on archive.is">Archive Page</button>)}
+                <button onClick={handleDelete} className="text-xs font-bold text-gray-400 hover:text-red-600 uppercase cursor-pointer">Delete Bookmark</button>
             </div>
         </div>
       </div>
+
+      <ConfirmModal 
+        isOpen={isConfirmOpen}
+        title="Bookmark löschen"
+        message={`Möchtest du das Bookmark "${bookmark.title}" wirklich unwiderruflich löschen?`}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
     </div>
   );
 };

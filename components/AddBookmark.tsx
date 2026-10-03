@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+// Local settings fetch logic directly in AddBookmark
 import { NewBookmark } from '../types';
-import { normalizeUrl, parseTags, sanitizeUrl, sanitizeInput } from '../utils/helpers';
+import { normalizeUrl, parseTags } from '../utils/helpers';
 
 interface AddBookmarkProps {
   onSave: (bookmark: NewBookmark) => Promise<void>;
@@ -28,6 +29,27 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
   const [toRead, setToRead] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchingMeta, setFetchingMeta] = useState(false);
+  const [clipArticle, setClipArticle] = useState(false);
+  const [clippingStatus, setClippingStatus] = useState('');
+  
+  // Local settings for clipping
+  const [localOpenRouterKey, setLocalOpenRouterKey] = useState<string | null>(null);
+  const [localAiBaseUrl, setLocalAiBaseUrl] = useState<string>('https://openrouter.ai/api/v1');
+  const [localAiModel, setLocalAiModel] = useState<string>('google/gemini-2.5-flash');
+  const [localClippingLanguage, setLocalClippingLanguage] = useState<string>('');
+  
+  useEffect(() => {
+      const storedLang = localStorage.getItem('hk_clipping_language');
+      if (storedLang) setLocalClippingLanguage(storedLang);
+      const storedKey = localStorage.getItem('hk_openrouter_key');
+      if (storedKey) setLocalOpenRouterKey(storedKey);
+      
+      const storedUrl = localStorage.getItem('hk_ai_base_url');
+      if (storedUrl) setLocalAiBaseUrl(storedUrl);
+      
+      const storedModel = localStorage.getItem('hk_ai_query_model') || localStorage.getItem('hk_wiki_model');
+      if (storedModel) setLocalAiModel(storedModel);
+  }, []);
   const [isDuplicate, setIsDuplicate] = useState(false);
   
   // Folder Management
@@ -103,30 +125,85 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url.trim()) return;
-
-    // SECURITY: Sanitize Inputs before submitting
-    const safeUrl = sanitizeUrl(url);
-    if (!safeUrl) {
-        alert("Invalid URL. Please check your input.");
-        return;
-    }
-
-    const safeTitle = sanitizeInput(title) || safeUrl;
-    const safeDescription = sanitizeInput(description);
+    if (!title.trim() && !url.trim()) return;
 
     setLoading(true);
     // Use shared utility
     const tagArray = parseTags(tags);
+    let finalTitle = title.trim() || 'Untitled Note';
+    let finalNotes = '';
+    let finalTags = tagArray;
+
+    if (clipArticle && url.trim()) {
+        try {
+            setClippingStatus('Scraping page...');
+            const scrapeRes = await fetch('/api/scrape', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url.trim() })
+            });
+            
+            if (scrapeRes.ok) {
+                const scrapeData = await scrapeRes.json();
+                
+                // If title was empty, maybe use scraped title
+                if (!title.trim() && scrapeData.title) {
+                    finalTitle = scrapeData.title;
+                }
+                
+                if (scrapeData.text && localOpenRouterKey) {
+                    setClippingStatus('Generating AI summary...');
+                    const aiRes = await fetch('/api/llm/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-openrouter-key': localOpenRouterKey || '',
+                            'x-ai-base-url': localAiBaseUrl
+                        },
+                        body: JSON.stringify({
+                            model: localAiModel,
+                            customMessages: [
+                                {
+                                    role: "system",
+                                    content: `You are an expert knowledge management assistant. The user is saving a webpage to their Second Brain. Provide a highly detailed and comprehensive summary of the content in Markdown. ${localClippingLanguage ? 'IMPORTANT: Write the summary in ' + localClippingLanguage + '!' : ''} Structure the summary logically with appropriate headings (e.g., '### Core Message', '### Key Points & Details', '### Conclusion'), use bullet points for readability, and highlight important terms in bold. Ensure all major arguments, facts, and insights from the text are captured. At the very end, extract 3-5 relevant tags and append them as #tag1 #tag2.`
+                                },
+                                {
+                                    role: "user",
+                                    content: `Title: ${scrapeData.title}\n\nText: ${scrapeData.text}`
+                                }
+                            ]
+                        })
+                    });
+                    
+                    if (aiRes.ok) {
+                        const aiData = await aiRes.json();
+                        const aiContent = aiData.choices?.[0]?.message?.content;
+                        if (aiContent) {
+                            finalNotes = `> **AI Summary**\n\n${aiContent}\n\n---\n*Source length: ${scrapeData.text.length} chars*`;
+                        }
+                    } else {
+                        finalNotes = `> **Clipped Content**\n\n${scrapeData.text.substring(0, 1000)}...`;
+                    }
+                } else if (scrapeData.text) {
+                    finalNotes = `> **Clipped Content**\n\n${scrapeData.text.substring(0, 1000)}...`;
+                }
+            }
+        } catch (err) {
+            console.error('Clipping failed', err);
+        }
+    }
 
     await onSave({
-      url: safeUrl,
-      title: safeTitle,
-      description: safeDescription,
-      tags: tagArray,
+      url: url.trim(),
+      title: finalTitle,
+      description,
+      notes: finalNotes ? finalNotes : undefined,
+      tags: finalTags,
       folders: selectedFolders,
       to_read: toRead
     });
+
+    setClippingStatus('');
     setLoading(false);
   };
 
@@ -157,29 +234,29 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="relative">
-             {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-600">URL</label>}
+             {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-700">URL (optional for notes)</label>}
              <div className="flex">
-                <input type="url" required className={`flex-grow border border-gray-300 p-2 focus:border-del-blue focus:ring-1 focus:ring-del-blue outline-none rounded-l-sm transition-all ${isPopup ? 'text-xs bg-gray-50 text-gray-500' : 'text-sm'} ${isDuplicate ? 'border-blue-300 bg-blue-50' : ''}`} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://" />
-                <button type="button" onClick={handleAutoFill} disabled={fetchingMeta || !url} className="bg-gray-100 border border-l-0 border-gray-300 px-3 text-xs font-bold text-gray-500 hover:text-del-blue hover:bg-white rounded-r-sm transition-colors min-w-[40px]" title="Auto-fetch details">
+                <input type="text" className={`flex-grow web2-input p-2 outline-none rounded-l-sm transition-all ${isPopup ? 'text-xs bg-gray-50 text-gray-500' : 'text-sm'} ${isDuplicate ? 'border-blue-300 bg-blue-50' : ''}`} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https:// (optional)" />
+                <button type="button" onClick={handleAutoFill} disabled={fetchingMeta || !url} className="web2-btn border-l-0 px-3 text-xs font-bold text-gray-600 hover:text-del-blue rounded-r-sm transition-colors min-w-[40px] cursor-pointer" title="Auto-fetch details">
                     {fetchingMeta ? <span className="inline-block animate-bounce">🐈</span> : '⚡'}
                 </button>
              </div>
         </div>
 
         <div>
-          {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-600">Title</label>}
-          <input type="text" required className={`w-full border border-gray-300 p-2 focus:border-del-blue focus:ring-1 focus:ring-del-blue outline-none font-bold text-black rounded-sm ${isPopup ? 'text-sm' : 'text-sm'}`} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" />
+          {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-700">Title</label>}
+          <input type="text" required className="w-full web2-input p-2 outline-none font-bold text-black rounded-sm text-sm" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" />
         </div>
 
         <div>
-          {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-600">Description</label>}
-          <textarea className={`w-full border border-gray-300 p-2 focus:border-del-blue focus:ring-1 focus:ring-del-blue outline-none rounded-sm resize-none ${isPopup ? 'text-xs h-16' : 'text-sm h-20'}`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional)" />
+          {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-700">Description</label>}
+          <textarea className={`w-full web2-input p-2 outline-none rounded-sm resize-none ${isPopup ? 'text-xs h-16' : 'text-sm h-20'}`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional)" />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
             <div>
-              {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-600">Tags</label>}
-              <input type="text" className={`w-full border border-gray-300 p-2 focus:border-del-blue focus:ring-1 focus:ring-del-blue outline-none rounded-sm ${isPopup ? 'text-xs' : 'text-sm'}`} value={tags} onChange={(e) => setTags(e.target.value)} placeholder={isPopup ? "# Tags (comma)" : "news, tech"} autoFocus={isPopup} />
+              {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-700">Tags</label>}
+              <input type="text" className={`w-full web2-input p-2 outline-none rounded-sm ${isPopup ? 'text-xs' : 'text-sm'}`} value={tags} onChange={(e) => setTags(e.target.value)} placeholder={isPopup ? "# Tags (comma)" : "news, tech"} autoFocus={isPopup} />
               <div className="flex flex-wrap gap-1 mt-1.5 min-h-[20px]">
                 {previewTags.map((t, i) => (
                     <span key={i} className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-600 border border-gray-200 rounded-sm">{t}</span>
@@ -189,15 +266,15 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
             </div>
 
             <div>
-              {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-600">Folder</label>}
+              {!isPopup && <label className="block text-xs font-bold mb-1 text-gray-700">Folder</label>}
               <div className="relative">
                   {isCreatingFolder ? (
                       <div className="flex gap-1 w-full">
-                          <input type="text" autoFocus placeholder="New Folder..." className={`border border-del-blue p-2 w-full outline-none rounded-sm ${isPopup ? 'text-xs' : 'text-sm'}`} value={newFolderTemp} onChange={(e) => setNewFolderTemp(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), confirmNewFolder())} />
-                          <button onClick={confirmNewFolder} type="button" className="bg-del-blue text-white text-xs px-2 rounded-sm">OK</button>
+                          <input type="text" autoFocus placeholder="New Folder..." className={`web2-input p-2 w-full outline-none rounded-sm ${isPopup ? 'text-xs' : 'text-sm'}`} value={newFolderTemp} onChange={(e) => setNewFolderTemp(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), confirmNewFolder())} />
+                          <button onClick={confirmNewFolder} type="button" className="web2-btn-blue text-xs px-2.5 rounded-sm">OK</button>
                       </div>
                   ) : (
-                    <select onChange={handleFolderSelect} className={`w-full border border-gray-300 bg-white rounded-sm focus:border-del-blue outline-none cursor-pointer ${isPopup ? 'text-xs p-2' : 'text-sm p-2'}`}>
+                    <select onChange={handleFolderSelect} className={`w-full web2-input bg-white rounded-sm outline-none cursor-pointer ${isPopup ? 'text-xs p-2' : 'text-sm p-2'}`}>
                         <option value="">Select Folder...</option>
                         {allFolders.map(f => (
                             <option key={f} value={f}>{f}</option>
@@ -219,17 +296,26 @@ export const AddBookmark: React.FC<AddBookmarkProps> = ({
             </div>
         </div>
 
-        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-50">
-            <input type="checkbox" id="toRead" checked={toRead} onChange={(e) => setToRead(e.target.checked)} className="rounded-sm border-gray-300 text-del-blue focus:ring-del-blue" />
-            <label htmlFor="toRead" className="text-xs text-gray-600 cursor-pointer select-none">Mark as <strong>Unread</strong> (Read Later)</label>
+        <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-gray-100">
+            <div className="flex items-center gap-2">
+                <input type="checkbox" id="toRead" checked={toRead} onChange={(e) => setToRead(e.target.checked)} className="rounded-sm border-gray-300 text-del-blue focus:ring-del-blue" />
+                <label htmlFor="toRead" className="text-xs text-gray-700 cursor-pointer select-none">Mark as <strong>Unread</strong> (Read Later)</label>
+            </div>
+            
+            <div className="flex items-center gap-2">
+                <input type="checkbox" id="clipArticle" checked={clipArticle} onChange={(e) => setClipArticle(e.target.checked)} disabled={!url} className="rounded-sm border-gray-300 text-purple-600 focus:ring-purple-600 disabled:opacity-50" />
+                <label htmlFor="clipArticle" className={`text-xs cursor-pointer select-none ${!url ? 'text-gray-400' : 'text-purple-800'}`}>
+                    <strong>✨ Web-Clipper:</strong> Seite lesen & mit KI zusammenfassen
+                </label>
+            </div>
         </div>
 
         <div className={`pt-2 flex gap-3 ${isPopup ? 'sticky bottom-0 bg-white pb-2' : ''}`}>
-          <button type="submit" disabled={loading} className={`bg-del-blue hover:bg-del-dark-blue text-white font-bold disabled:opacity-50 shadow-sm transition-colors ${isPopup ? 'w-full py-2.5 text-sm rounded-sm' : 'px-6 py-1.5 text-sm uppercase rounded-sm'}`}>
-            {loading ? 'Saving...' : (isDuplicate ? 'SAVE ANYWAY' : 'Save Bookmark')}
+          <button type="submit" disabled={loading} className={`web2-btn-blue font-bold disabled:opacity-50 transition-all cursor-pointer ${isPopup ? 'w-full py-2.5 text-sm rounded-sm' : 'px-6 py-2 text-xs uppercase rounded-sm'}`}>
+            {loading ? (clippingStatus || 'Saving...') : (isDuplicate ? 'SAVE ANYWAY' : 'Save Bookmark')}
           </button>
           {!isPopup && (
-              <button type="button" onClick={onCancel} className="text-gray-500 text-xs hover:underline uppercase font-bold px-2">cancel</button>
+              <button type="button" onClick={onCancel} className="web2-btn text-gray-600 text-xs hover:text-black uppercase font-bold px-4 py-2 rounded-sm cursor-pointer">cancel</button>
           )}
         </div>
       </form>

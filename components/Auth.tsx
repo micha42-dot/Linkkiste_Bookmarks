@@ -76,15 +76,14 @@ export const Auth: React.FC<AuthProps> = ({ isPopup = false }) => {
       <div className={`w-full bg-white border border-[#ccc] shadow-sm ${isPopup ? 'border-none shadow-none max-w-full' : 'max-w-[400px]'}`}>
         
         {/* Delicious-style Header */}
-        <div className={`bg-white border-b border-[#eee] ${isPopup ? 'pb-2 mb-2' : 'p-6 pb-2'}`}>
-            <div className={`flex items-center gap-1 ${isPopup ? 'justify-center mb-1' : 'mb-2'}`}>
+        <div className={`bg-white border-b border-[#eee] ${isPopup ? 'pb-2 mb-2' : 'p-6 pb-4'}`}>
+            <div className={`flex items-center gap-1 ${isPopup ? 'justify-center mb-1' : ''}`}>
                 <div className="w-6 h-6 bg-black mr-1"></div>
                 <div className="w-6 h-6 bg-del-blue mr-2"></div>
                 <h1 className="text-2xl font-bold tracking-tight text-gray-500">
                     <span className="text-black">link</span>kiste
                 </h1>
             </div>
-            {!isPopup && <p className="text-xs text-gray-400 font-bold uppercase tracking-wide">just simple bookmarking</p>}
         </div>
 
         <div className={`${isPopup ? 'p-0' : 'p-8 pt-6'}`}>
